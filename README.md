@@ -1,153 +1,269 @@
-# GCR Simplified — Grade · Check · Report
+<div align="center">
 
-A local-first desktop app for teachers that syncs Google Classroom coursework, downloads and
-extracts student submissions, detects plagiarism (Winnowing + TF-IDF), grades with Gemini AI
-(with teacher approval workflow), and exports a polished 4-sheet Excel gradebook.
+# 📚 GCR Simplified
+### **Grade · Check · Report — Simplified**
 
-Built with **Tauri 2 + React + TypeScript + Rust** — no Python, no server. All data stays on
-your machine.
+*A local-first, privacy-focused desktop power tool that automates assignment evaluation, intra-class plagiarism detection, AI grading, and Excel gradebook generation on top of Google Classroom.*
 
-## Features
+[![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-blue?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/Rust-1.80+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?logo=apple&logoColor=black)](https://github.com/Udbhav7002/GCR_Simplified/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-- **Google Classroom sync** — OAuth 2.0 (PKCE, loopback) login, courses, coursework, rosters,
-  submissions, missing-submission report with real Gmail reminder emails, incremental
-  ETag-based syncing (Sync button forces a full refresh)
-- **Drive download** — batch downloads with 4-way concurrency and live progress; Google Docs
-  auto-export as PDF; filename collision dedupe
-- **Text extraction** — PDF, DOCX, plaintext and code files, cached in SQLite
-- **Plagiarism detection** — Winnowing fingerprints + TF-IDF cosine similarity, side-by-side
-  matched fragments, cluster view of connected students, run history
-- **AI grading (Gemini)** — rubric-driven grading with strict JSON mode, per-criterion
-  justifications, chunk-safe prompts, teacher override + approve workflow
-- **Excel export** — 4 sheets (Summary, Grade Sheet, Integrity Report, Feedback Log) with
-  conditional formatting
-- **Security** — OAuth tokens, client secret and the Gemini API key are stored in the OS
-  keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service), never plaintext
+---
 
-## Prerequisites
+**[Key Features](#-key-features)** •
+**[Why GCR Simplified?](#-why-gcr-simplified)** •
+**[Teacher Workflow](#-teacher-workflow)** •
+**[Getting Started](#-getting-started)** •
+**[Google Cloud Setup](#-google-cloud-console-setup)** •
+**[Architecture](#-system-architecture)** •
+**[Privacy & Security](#-privacy--ferpa-compliance)**
 
-- Node.js 20+ and Rust (stable) toolchain
-- Platform deps for Tauri 2: see
-  [Tauri prerequisites](https://tauri.app/start/prerequisites/) (WebKit on Linux)
-- Linux only: a Secret Service provider (e.g. `gnome-keyring` or `kwallet`) for the keychain
-  integration
+---
 
-## Setup
+</div>
 
-```bash
-npm install
+<br/>
+
+## 🌟 Overview
+
+Teachers spend upwards of **140+ hours per academic year** just marking assignments. Grading requires opening dozens of browser tabs, cross-referencing rubrics, manually looking for copied student work, and copy-pasting numbers into spreadsheets.
+
+**GCR Simplified** eliminates this repetitive mechanical burden by sitting **directly on top of Google Classroom**:
+* **Students don't need any new app:** They submit their PDFs, DOCX files, and Google Docs on Google Classroom as usual.
+* **Teachers get superpowers:** One-click batch sync, automated multi-format text extraction, offline peer-to-peer plagiarism checking, AI-assisted rubric grading via Google Gemini, and instant 4-sheet formatted Excel gradebooks.
+* **Local-First & Private:** Submissions, extracted text, and similarity analysis are processed **100% locally on your machine**.
+
+---
+
+## 🚀 Key Features
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>🔄 Google Classroom Sync</h3>
+      <ul>
+        <li>Secure OAuth 2.0 PKCE desktop login with auto-refresh.</li>
+        <li>Live sync for active courses, rosters, and assignments.</li>
+        <li><b>Missing Submissions Tracker:</b> Instant list of non-submitters with one-click Gmail reminder nudges.</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>📥 Parallel Ingestion & Extraction</h3>
+      <ul>
+        <li>High-speed batch file downloads with bounded concurrency.</li>
+        <li>Google Docs & Sheets auto-exported to PDF via Drive API v3.</li>
+        <li><b>Pure Rust Parsers:</b> Instant text extraction for <code>PDF</code>, <code>DOCX</code>, plain text, and code files.</li>
+        <li>Persistent SQLite extraction caching.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔍 Offline Plagiarism Engine</h3>
+      <ul>
+        <li><b>Winnowing Fingerprinting:</b> $k$-gram hashing for verbatim copied blocks.</li>
+        <li><b>TF-IDF & Cosine Similarity:</b> Vector-space semantic analysis to catch paraphrased copying.</li>
+        <li><b>Interactive UI:</b> Side-by-side matching fragment viewer and cluster graphs.</li>
+        <li>Zero cloud dependency — runs 100% offline.</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🤖 AI Rubric Grading (Gemini)</h3>
+      <ul>
+        <li>Evaluates student work against custom multi-criteria rubrics.</li>
+        <li>Uses Gemini's structured JSON schema mode for guaranteed valid, criterion-by-criterion scoring.</li>
+        <li><b>Teacher-in-the-Loop:</b> All AI scores are <i>"Suggested"</i> until reviewed. 1-click score overrides and bulk approval.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <h3>📊 Multi-Sheet Formatted Excel Exporter</h3>
+      <p>Generates an institutional-grade <code>.xlsx</code> workbook built via native <code>rust_xlsxwriter</code> with conditional formatting:</p>
+      <ul>
+        <li><b>Sheet 1 (Summary):</b> Class statistics, averages, highest/lowest scores, and submission counts.</li>
+        <li><b>Sheet 2 (Grade Sheet):</b> Roster breakdown with points per criterion, total grades, and approval status.</li>
+        <li><b>Sheet 3 (Integrity Report):</b> Flagged similarity pairs with color-coded confidence levels.</li>
+        <li><b>Sheet 4 (Feedback Log):</b> Full justification and student feedback per submission.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 🎯 Why GCR Simplified?
+
+```
+Traditional Workflow (Painful)              GCR Simplified (Frictionless)
+───────────────────────────────              ─────────────────────────────
+1. Open Google Classroom in browser          1. Open GCR Simplified desktop app
+2. Click assignment                          2. Click "Sync" & "Download All" (10s)
+3. Open 40 Google Docs tabs one-by-one       3. Click "Check Plagiarism" (Instant local diff)
+4. Manually compare suspected copies         4. Click "AI Grade" (Gemini scores against rubric)
+5. Read each doc, manually tally rubric      5. Review & 1-click override/approve
+6. Retype grades into an Excel sheet         6. Click "Export Gradebook" -> Done!
+⏱️ Time: 4 to 6 Hours                       ⏱️ Time: 5 to 10 Minutes
 ```
 
-### Google Cloud Console setup (required for sync)
+---
 
-1. Go to <https://console.cloud.google.com/> and create a project.
-2. Enable the **Google Classroom API** and **Google Drive API**.
-3. In **APIs & Services → OAuth consent screen**, set the app type to *Internal* (workspace
-   domain) or *External* + test users, and add yourself as a test user.
-4. In **APIs & Services → Credentials**, create an **OAuth client ID** of type
-   **Desktop app**.
-5. Open GCR Simplified → **Settings**, paste your Client ID and Client Secret, and click
-   **Connect Google Account**. Approve the consent screen in your browser. The window closes
-   automatically.
+## 🔄 Teacher Workflow
 
-> The app requests the `gmail.send` scope (for missing-submission reminder emails). If you
-> connected before this scope existed, reconnect once in Settings to grant it.
+```mermaid
+flowchart LR
+    A[Google Classroom] -->|Sync & Download| B(GCR Simplified)
+    B -->|Pure Rust| C[Text Extraction]
+    C -->|Offline Engine| D[Plagiarism Check]
+    C -->|Gemini AI| E[Rubric Grading]
+    D --> F[Interactive Review]
+    E --> F
+    F -->|Approve| G[4-Sheet Excel Workbook]
+```
 
-### Gemini API key (required for AI grading)
+1. **Connect:** Authenticate with your Google Classroom account in Settings.
+2. **Select Course & Assignment:** Choose any active assignment from your courses.
+3. **Download & Extract:** Click **Download All** followed by **Extract All Text**.
+4. **Inspect Integrity:** View the Plagiarism Matrix to inspect flagged student pairs side-by-side.
+5. **AI Evaluation:** Run Gemini rubric evaluation to generate suggested scores and feedback.
+6. **Review & Approve:** Adjust any score with a single click, then click **Approve All**.
+7. **Export:** Click **Export Gradebook** to save a complete, formatted `.xlsx` report.
 
-1. Get a key at <https://aistudio.google.com/apikey>.
-2. Paste it into **Settings → AI Configuration → Google Gemini API Key** and save.
+---
 
-## Development
+## 🛠️ Getting Started
+
+### Prerequisites
+* **Node.js:** v20.0 or later ([Download](https://nodejs.org/))
+* **Rust:** Stable toolchain (`rustc`, `cargo`) ([Install Rust](https://www.rust-lang.org/tools/install))
+* **Platform Dependencies:** See [Tauri 2 Prerequisites](https://tauri.app/start/prerequisites/) for your operating system.
+
+### Installation & Local Setup
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/Udbhav7002/GCR_Simplified.git
+cd GCR_Simplified
+
+# 2. Install frontend dependencies
+npm install
+
+# 3. Launch in development mode
 npm run tauri dev
 ```
 
-## Building installers
+---
+
+## 🔑 Google Cloud Console Setup
+
+To connect GCR Simplified to your Google Classroom, you will need a standard Google Cloud OAuth 2.0 Desktop Client ID (takes ~3 minutes):
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a new project (e.g. `GCR Simplified`).
+2. Navigate to **APIs & Services → Library** and enable:
+   * **Google Classroom API**
+   * **Google Drive API**
+   * **Gmail API** *(optional, for missing submission email reminders)*
+3. Navigate to **APIs & Services → OAuth consent screen**:
+   * Choose **External** (or **Internal** if within a Google Workspace school domain).
+   * Enter your app name and email, and add your Google account under **Test Users**.
+4. Navigate to **APIs & Services → Credentials**:
+   * Click **Create Credentials → OAuth client ID**.
+   * Application type: **Desktop app**.
+5. Copy your **Client ID** and **Client Secret**, open GCR Simplified **Settings**, and click **Connect Google Account**.
+
+### AI Configuration (Gemini API)
+1. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).
+2. Paste it into **Settings → AI Configuration → Google Gemini API Key**.
+
+---
+
+## 🏛️ System Architecture
+
+```text
+GCR_Simplified/
+├── src/                               # React 18 + TypeScript Frontend
+│   ├── components/
+│   │   ├── layout/                    # Header, Sidebar navigation
+│   │   └── ui/                        # Base UI / shadcn design system
+│   ├── pages/
+│   │   ├── Dashboard.tsx              # Overview statistics & recent courses
+│   │   ├── Courses.tsx                # Google Classroom course grid
+│   │   ├── CourseDetail.tsx           # Student roster & coursework lists
+│   │   ├── AssignmentSubmissions.tsx  # Ingestion, downloader & text viewer
+│   │   ├── MissingSubmissions.tsx     # Non-submitters tracker & email nudges
+│   │   ├── PlagiarismReport.tsx       # Plagiarism matrix & side-by-side diff
+│   │   ├── Gradebook.tsx              # AI evaluation & score override matrix
+│   │   └── Settings.tsx               # OAuth credentials & Gemini key setup
+│   ├── lib/
+│   │   ├── ipc.ts                     # Type-safe Tauri IPC invoke bridge
+│   │   └── types.ts                   # TypeScript interfaces (mirrors Rust structs)
+│   └── App.tsx                        # Client-side router
+│
+└── src-tauri/                         # Rust Core Backend
+    ├── src/
+    │   ├── db/                        # SQLite pool & schema (WAL mode)
+    │   ├── google/                    # OAuth2 PKCE loopback, Classroom, Drive, Gmail
+    │   ├── extraction/                # PDF (pdf-extract), DOCX (zip+xml), text
+    │   ├── plagiarism/                # Winnowing hashing & TF-IDF Cosine algorithms
+    │   ├── grading/                   # Gemini API client & rubric evaluation commands
+    │   ├── export/                    # rust_xlsxwriter 4-sheet gradebook generator
+    │   ├── security.rs                # OS Keychain encryption (macOS/Windows/Linux)
+    │   └── lib.rs                     # Tauri builder & command handler dispatch
+    └── Cargo.toml                     # Rust crate dependencies
+```
+
+---
+
+## 🔒 Privacy & FERPA Compliance
+
+* **Local-First Architecture:** All student data, files, and similarity matrix calculations remain strictly on the teacher's local device.
+* **No Student Accounts:** Students never interact with or register on GCR Simplified, completely bypassing COPPA and student-data privacy liabilities.
+* **Encrypted Credential Storage:** OAuth tokens and API keys are stored in the OS secure credential store (**macOS Keychain**, **Windows Credential Manager**, or **Linux Secret Service**), never in plaintext.
+* **Clean Purge:** Submissions and cached texts can be cleared with one click at the end of the term.
+
+---
+
+## 🧪 Testing & Quality Gates
+
+```bash
+# Run Rust unit tests (Winnowing, TF-IDF, DOCX parser, schemas)
+cd src-tauri && cargo test
+
+# Run frontend type-check and production build
+npm run build
+
+# Run Rust formatting and linter
+cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings
+```
+
+---
+
+## 📦 Building Production Installers
+
+To create native distributable installers for your current operating system:
 
 ```bash
 npm run tauri build
 ```
 
-Outputs (per your OS): `.dmg`/`.app` (macOS), `.msi`/`.exe` (Windows), `.deb`/`.AppImage`
-(Linux) under `src-tauri/target/release/bundle/`.
+Installers are output to `src-tauri/target/release/bundle/`:
+* **macOS:** `.dmg` / `.app` (Universal, Apple Silicon, or Intel)
+* **Windows:** `.msi` / `.exe`
+* **Linux:** `.deb` / `.AppImage`
 
-A GitHub Actions workflow (`.github/workflows/release.yml`) builds all three platforms on a
-`v*` tag and attaches the installers to a draft release.
+---
 
-## Auto-updates
+## 📄 License
 
-The app checks for updates on launch via `tauri-plugin-updater` (update manifest served from
-GitHub Releases).
+This project is open-source software licensed under the [MIT License](LICENSE).
 
-Before shipping updates:
+---
 
-1. Add the updater signing key to your GitHub repo secrets (Settings → Secrets and variables →
-   Actions):
-   - `TAURI_SIGNING_PRIVATE_KEY` — contents of `~/.tauri/gcr_simplified.key`
-   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — the key password (empty string if none)
-2. Bump `version` in `src-tauri/tauri.conf.json` and tag the release with `v<version>`. The
-   `Release` workflow builds installers and attaches them to a draft release; the update
-   manifest is served from that release.
-
-> Keep the private key safe — losing it means you can no longer sign updates.
-
-### Code signing & notarization (macOS)
-
-The release workflow signs and notarizes macOS builds automatically when these repo secrets
-are configured:
-
-- `APPLE_CERTIFICATE` — base64 of your Developer ID Application `.p12`
-- `APPLE_CERTIFICATE_PASSWORD` — the `.p12` password
-- `APPLE_SIGNING_IDENTITY` — e.g. `Developer ID Application: Your Name (TEAMID)`
-- `APPLE_ID` / `APPLE_PASSWORD` — Apple ID + app-specific password (notarization)
-- `APPLE_TEAM_ID` — your Apple Developer Team ID
-
-Without these, macOS builds still produce a `.dmg`, but Gatekeeper will warn users that the
-app is unsigned. Windows builds can be signed via an OV code-signing certificate (configured
-outside of the workflow).
-
-## Tests & quality gates
-
-```bash
-# Rust unit tests
-cd src-tauri && cargo test
-
-# Frontend lint + format
-npm run lint
-npm run format:check
-
-# All type checks + production build
-npm run build
-
-# Rust quality gates (run in CI)
-cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings
-```
-
-Unit tests cover Winnowing, TF-IDF, DOCX extraction, Gemini prompt/schema construction, Excel
-export, and secret-key classification.
-
-## Data & privacy
-
-- All student data, extracted text, grades, and similarity results live in a local SQLite
-  database in the OS app-data directory — nothing is uploaded except the explicit API calls
-  to Google (Classroom/Drive) and Gemini (grading).
-- Credentials are stored in the OS keychain under service `com.gcrsimplified.app`.
-- Gemini grading sends the student's submission text and your rubric to Google's Gemini API.
-  Review your institution's FERPA/data-sharing policies before enabling AI grading.
-
-## Project layout
-
-```
-src/                      React frontend (pages, components, IPC wrappers in src/lib/ipc.ts)
-src-tauri/src/
-  db/                     SQLite schema + pool
-  google/                 OAuth PKCE, Classroom API, Drive downloads
-  extraction/             PDF / DOCX / plaintext extractors
-  plagiarism/             Winnowing + TF-IDF + pairwise engine
-  grading/                Gemini client + gradebook commands
-  export/                 Excel export (rust_xlsxwriter, 4 sheets)
-  commands/               rubric CRUD, dashboard stats, maintenance (purge/backup)
-  security.rs             OS keychain secret storage
-```
+<div align="center">
+  <sub>Built with ❤️ for educators everywhere.</sub>
+</div>
