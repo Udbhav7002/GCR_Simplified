@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCR Simplified — Detailed Project Report</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary: #10b981;
+    --accent: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-light: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    margin: 0;
+    padding: 0;
+  }
+  .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+  header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 3rem 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+  }
+  header h1 { margin: 0; font-size: 2.5rem; }
+  header p { margin: 0.5rem 0 0; opacity: 0.9; font-size: 1.1rem; }
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  h3 { font-size: 1.2rem; margin-top: 1.8rem; color: var(--primary-dark); }
+  h4 { font-size: 1rem; margin-top: 1.2rem; color: var(--text); }
+  .card {
+    background: var(--card);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { background: #f1f5f9; font-weight: 600; }
+  tr:hover { background: #f8fafc; }
+  .highlight-box {
+    background: #eff6ff;
+    border-left: 4px solid var(--primary);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    margin: 1rem 0;
+  }
+  .warning-box {
+    background: #fffbeb;
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    margin: 1rem 0;
+  }
+  .danger-box {
+    background: #fef2f2;
+    border-left: 4px solid var(--danger);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    margin: 1rem 0;
+  }
+  .success-box {
+    background: #f0fdf4;
+    border-left: 4px solid var(--secondary);
+    padding: 1rem 1.25rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    margin: 1rem 0;
+  }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin-bottom: 0.4rem; }
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.6rem;
+    top: 0.35rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px var(--primary);
+  }
+  .timeline-title { font-weight: 700; color: var(--primary-dark); }
+  .timeline-meta { font-size: 0.85rem; color: var(--text-light); }
+  .tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .tech-pill {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .metric {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--card);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .metric-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+  }
+  code {
+    background: #f1f5f9;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+  .toc {
+    background: var(--card);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 1rem;
+  }
+  .toc ul { list-style: none; padding: 0; }
+  .toc li { margin-bottom: 0.5rem; }
+  .toc a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+  .page-break { page-break-after: always; }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<div class="container">
+
+<header>
+  <h1>📚 GCR Simplified — Project Blueprint</h1>
+  <p>AI-Powered Assignment Evaluation &amp; Integrity System for Teachers</p>
+  <p style="margin-top:1rem;font-size:0.9rem;opacity:0.8;">Cross-Platform Desktop App (Windows &amp; macOS) | Detailed Technical &amp; Product Report</p>
+</header>
+
+<div class="grid-2">
+  <div class="toc">
+    <strong style="font-size:1.1rem;">📋 Table of Contents</strong>
+    <ul>
+      <li><a href="#s1">1. Executive Summary</a></li>
+      <li><a href="#s2">2. Refined Product Vision</a></li>
+      <li><a href="#s3">3. Feature Architecture</a></li>
+      <li><a href="#s4">4. Technical Stack</a></li>
+      <li><a href="#s5">5. Plagiarism Detection Engine</a></li>
+      <li><a href="#s6">6. AI Grading Engine</a></li>
+      <li><a href="#s7">7. UI/UX Design for Teachers</a></li>
+      <li><a href="#s8">8. Data Flow &amp; System Architecture</a></li>
+      <li><a href="#s9">9. Implementation Roadmap</a></li>
+      <li><a href="#s10">10. Competitive Analysis</a></li>
+      <li><a href="#s11">11. Compliance &amp; Privacy</a></li>
+      <li><a href="#s12">12. Monetization Strategy</a></li>
+      <li><a href="#s13">13. Risk Assessment &amp; Mitigation</a></li>
+      <li><a href="#s14">14. Success Metrics</a></li>
+    </ul>
+  </div>
+
+  <div>
+    <div class="grid-2">
+      <div class="metric">
+        <div class="metric-value">80%</div>
+        <div class="metric-label">Time Savings on Grading</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">7+ hrs</div>
+        <div class="metric-label">Weekly Time Reclaimed</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">140 hrs</div>
+        <div class="metric-label">Annual Marking Hours</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">2</div>
+        <div class="metric-label">Platforms (Win + Mac)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 id="s1"><span style="font-size:1.3rem;">📌</span> 1. Executive Summary</h2>
+
+<div class="highlight-box">
+  <strong>Core Problem:</strong> Teachers spend up to <strong>140 hours per school year</strong> just on marking assignments — not including lesson planning or parent communication. This hidden workload swallows evenings and weekends, leading to burnout and reduced time for actual teaching.
+</div>
+
+<p><strong>GCR Simplified</strong> is a cross-platform desktop application (Windows &amp; macOS) designed to automate the entire assignment evaluation pipeline for teachers. It combines submission tracking, AI-powered plagiarism detection, intelligent answer evaluation, rubric-based scoring with explainable feedback, and Excel report generation — all within a clean, teacher-friendly interface.</p>
+
+<div class="card">
+  <div class="card-title">🎯 Key Value Propositions</div>
+  <ol>
+    <li><strong>Submission Tracking Automation</strong> — Instantly identifies who submitted and who didn't, with automated nudge reminders.</li>
+    <li><strong>Cross-Student Plagiarism Detection</strong> — Detects copied assignments between students using multi-layered similarity algorithms (not just web plagiarism).</li>
+    <li><strong>AI Answer Evaluation</strong> — Uses Large Language Models (LLMs) to evaluate open-ended responses against teacher-defined rubrics and model answers.</li>
+    <li><strong>Explainable Scoring</strong> — Every score comes with a clear, human-readable justification referencing specific rubric criteria.</li>
+    <li><strong>One-Click Excel Export</strong> — Generates formatted grade sheets with scores, feedback, and integrity flags, saved to teacher's chosen location.</li>
+  </ol>
+</div>
+
+<h2 id="s2"><span style="font-size:1.3rem;">🎯</span> 2. Refined Product Vision</h2>
+
+<h3>2.1 Product Name &amp; Positioning</h3>
+<p><strong>Name:</strong> <code>GCR Simplified</code> (Grade · Check · Report — Simplified)</p>
+<p><strong>Tagline:</strong> "From submissions to scoresheets in minutes, not hours."</p>
+<p><strong>Positioning:</strong> A teacher-first desktop utility that handles the mechanical, repetitive parts of grading so teachers can focus on <em>teaching</em> and <em>mentoring</em>. It is <strong>not</strong> a replacement for teacher judgment — it is an amplifier of teacher time.</p>
+
+<h3>2.2 Target User Personas</h3>
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">👩🏫 Primary: Mrs. Sharma (High School Teacher)</div>
+    <ul>
+      <li>Teaches 5 sections, ~150 students</li>
+      <li>Grades 30–40 written assignments weekly</li>
+      <li>Uses Google Classroom or submits via email/USB</li>
+      <li>Tech comfort: Moderate (uses Excel, Google Docs)</li>
+      <li><strong>Pain:</strong> "I spend my Sundays grading. I want that time back."</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">👨🏫 Secondary: Prof. Khan (University Lecturer)</div>
+    <ul>
+      <li>Teaches 3 courses, ~200 students</li>
+      <li>Needs plagiarism detection for coding &amp; theory assignments</li>
+      <li>Requires detailed rubric alignment</li>
+      <li>Tech comfort: High</li>
+      <li><strong>Pain:</strong> "I need consistency across TAs and fast integrity checks."</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.3 Refined Feature Set (MVP vs. Full)</h3>
+<table>
+  <tr>
+    <th>Feature</th>
+    <th>MVP (Phase 1)</th>
+    <th>Full Release (Phase 2)</th>
+  </tr>
+  <tr>
+    <td>Submission Tracking</td>
+    <td>Manual upload + CSV roster import</td>
+    <td>Google Classroom / LMS integration</td>
+  </tr>
+  <tr>
+    <td>Plagiarism Detection</td>
+    <td>Cross-student text similarity (local)</td>
+    <td>+ Web plagiarism + AI-generated text detection</td>
+  </tr>
+  <tr>
+    <td>AI Grading</td>
+    <td>Short-answer &amp; essay rubric grading</td>
+    <td>+ STEM equation grading + handwriting OCR</td>
+  </tr>
+  <tr>
+    <td>Feedback</td>
+    <td>AI-generated paragraph per student</td>
+    <td>+ Inline comments + voice feedback</td>
+  </tr>
+  <tr>
+    <td>Reporting</td>
+    <td>Excel export with scores &amp; flags</td>
+    <td>+ PDF reports + parent email integration</td>
+  </tr>
+  <tr>
+    <td>Platforms</td>
+    <td>Windows 10/11 + macOS 12+</td>
+    <td>+ Linux + Web companion</td>
+  </tr>
+</table>
+
+<h2 id="s3"><span style="font-size:1.3rem;">🏗️</span> 3. Feature Architecture</h2>
+
+<h3>3.1 Module 1: Submission Tracker</h3>
+<div class="card">
+  <p><strong>Purpose:</strong> Ensure no student slips through the cracks.</p>
+  <ul>
+    <li><strong>Roster Import:</strong> Upload CSV/Excel with student names, roll numbers, emails.</li>
+    <li><strong>Auto-Match:</strong> Matches submitted files to roster using filename patterns (e.g., <code>RollNo_Name_Assignment.pdf</code>).</li>
+    <li><strong>Missing Report:</strong> One-click view of unsubmitted students with option to export list or send reminder.</li>
+    <li><strong>File Format Support:</strong> PDF, DOCX, TXT, Images (JPG/PNG for handwritten), ZIP bulk uploads.</li>
+  </ul>
+</div>
+
+<h3>3.2 Module 2: Integrity Checker (Plagiarism)</h3>
+<div class="card">
+  <p><strong>Purpose:</strong> Catch cheaters who copy from friends — the most common form of classroom plagiarism.</p>
+  <ul>
+    <li><strong>Intra-Class Similarity:</strong> Compares every submission against every other submission in the batch.</li>
+    <li><strong>Multi-Layer Detection:</strong>
+      <ul>
+        <li><strong>Layer 1 — Text Fingerprinting (n-grams):</strong> Fast exact-match detection using Winnowing algorithm.</li>
+        <li><strong>Layer 2 — Semantic Similarity:</strong> Sentence embeddings (e.g., all-MiniLM-L6-v2) to catch paraphrased copying.</li>
+        <li><strong>Layer 3 — Stylometry:</strong> Writing style analysis to flag sudden style shifts (indicates ghostwriting or AI generation).</li>
+      </ul>
+    </li>
+    <li><strong>Clustering View:</strong> Groups suspicious submissions into "copy clusters" with similarity percentages.</li>
+    <li><strong>Side-by-Side Diff:</strong> Highlighted comparison of two submissions with color-coded matching blocks.</li>
+  </ul>
+</div>
+
+<h3>3.3 Module 3: AI Evaluation Engine</h3>
+<div class="card">
+  <p><strong>Purpose:</strong> Consistent, rubric-aligned grading at scale.</p>
+  <ul>
+    <li><strong>Rubric Builder:</strong> Teacher defines criteria (e.g., "Thesis Clarity — 5 marks", "Evidence — 5 marks", "Grammar — 3 marks").</li>
+    <li><strong>Model Answer Upload:</strong> Teacher can provide a reference/model answer for relative scoring.</li>
+    <li><strong>LLM Evaluation Pipeline:</strong>
+      <ol>
+        <li>Extract text from submission (OCR if image/PDF).</li>
+        <li>Chunk long answers into semantic segments.</li>
+        <li>Send to LLM with rubric, model answer, and evaluation prompt.</li>
+        <li>Parse structured JSON response: <code>{"criteria": [...], "total_score": X, "feedback": "..."}</code></li>
+      </ol>
+    </li>
+    <li><strong>Explainability:</strong> Every score includes a 2–3 sentence rationale tied to specific rubric points.</li>
+    <li><strong>Teacher Override:</strong> Teachers can click any score, see AI reasoning, and adjust — the system learns from corrections.</li>
+  </ul>
+</div>
+
+<h3>3.4 Module 4: Reporting &amp; Export</h3>
+<div class="card">
+  <p><strong>Purpose:</strong> Zero-friction report generation.</p>
+  <ul>
+    <li><strong>Excel Workbook:</strong> Auto-formatted with:
+      <ul>
+        <li>Sheet 1: Summary (class average, highest/lowest, submission rate)</li>
+        <li>Sheet 2: Grade Sheet (Roll No, Name, Score per criteria, Total, Grade, Remarks)</li>
+        <li>Sheet 3: Integrity Report (similarity scores, flagged pairs, action taken)</li>
+        <li>Sheet 4: Feedback Log (full AI feedback per student for reference)</li>
+      </ul>
+    </li>
+    <li><strong>Custom Save Location:</strong> Teacher picks folder; file auto-named: <code>ClassName_AssignmentName_Date.xlsx</code></li>
+    <li><strong>Template Support:</strong> Teachers can save their preferred Excel template for future assignments.</li>
+  </ul>
+</div>
+
+<h2 id="s4"><span style="font-size:1.3rem;">💻</span> 4. Recommended Technical Stack</h2>
+
+<div class="warning-box">
+  <strong>Key Decision:</strong> Since this is a cross-platform desktop app for non-technical users (teachers), the stack must balance <strong>performance</strong>, <strong>small download size</strong>, <strong>native feel</strong>, and <strong>development speed</strong>.
+</div>
+
+<h3>4.1 Recommended Primary Stack: Tauri + React</h3>
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">🥇 Tauri (Backend / Shell)</div>
+    <div class="tech-stack">
+      <span class="tech-pill">Rust</span>
+      <span class="tech-pill">System WebView</span>
+      <span class="tech-pill">&lt;10 MB Binary</span>
+    </div>
+    <ul>
+      <li><strong>Ultra-lightweight:</strong> Apps are ~5–10 MB vs 100–200 MB for Electron.</li>
+      <li><strong>Low memory:</strong> Uses OS native webview, not bundled Chromium.</li>
+      <li><strong>Secure:</strong> Rust's memory safety prevents common vulnerabilities.</li>
+      <li><strong>Native APIs:</strong> Easy file system access, Excel generation, system dialogs.</li>
+      <li><strong>Cross-platform:</strong> Windows, macOS, Linux from single codebase.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">⚛️ React + TypeScript (Frontend)</div>
+    <div class="tech-stack">
+      <span class="tech-pill">React 19</span>
+      <span class="tech-pill">TypeScript</span>
+      <span class="tech-pill">Tailwind CSS</span>
+      <span class="tech-pill">shadcn/ui</span>
+    </div>
+    <ul>
+      <li><strong>Familiar ecosystem:</strong> Large hiring pool, extensive libraries.</li>
+      <li><strong>Teacher-friendly UI:</strong> Component libraries like shadcn/ui provide clean, accessible components.</li>
+      <li><strong>Hot reload:</strong> Fast iteration during development.</li>
+      <li><strong>Excel export:</strong> Libraries like <code>sheetjs</code> or <code>exceljs</code> work perfectly.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.2 Alternative Stack Comparison</h3>
+<table>
+  <tr>
+    <th>Framework</th>
+    <th>App Size</th>
+    <th>Memory</th>
+    <th>Best For</th>
+    <th>Verdict for GCR</th>
+  </tr>
+  <tr>
+    <td><strong>Tauri</strong></td>
+    <td>&lt;10 MB</td>
+    <td>Low</td>
+    <td>Lightweight utilities</td>
+    <td><span class="badge badge-green">Recommended</span></td>
+  </tr>
+  <tr>
+    <td>Electron</td>
+    <td>100–200 MB</td>
+    <td>High</td>
+    <td>Complex web apps</td>
+    <td><span class="badge badge-amber">Viable but heavy</span></td>
+  </tr>
+  <tr>
+    <td>Flutter Desktop</td>
+    <td>30–60 MB</td>
+    <td>Low</td>
+    <td>Custom pixel-perfect UI</td>
+    <td><span class="badge badge-amber">Good, but Dart learning curve</span></td>
+  </tr>
+  <tr>
+    <td>.NET MAUI</td>
+    <td>20–60 MB</td>
+    <td>Medium</td>
+    <td>Enterprise Windows apps</td>
+    <td><span class="badge badge-red">No Linux, limited macOS</span></td>
+  </tr>
+  <tr>
+    <td>PyQt / PySide</td>
+    <td>Small</td>
+    <td>Medium</td>
+    <td>Python data tools</td>
+    <td><span class="badge badge-red">Distribution complexity</span></td>
+  </tr>
+</table>
+
+<h3>4.3 AI / ML Stack</h3>
+<div class="card">
+  <div class="card-title">🧠 AI Components</div>
+  <ul>
+    <li><strong>LLM for Grading:</strong> Google Gemini via API (primary) with option for local LLM via Ollama for privacy-first schools.</li>
+    <li><strong>Embeddings for Similarity:</strong> <code>sentence-transformers/all-MiniLM-L6-v2</code> (lightweight, runs locally via ONNX).</li>
+    <li><strong>OCR for Handwriting:</strong> <code>Tesseract</code> (free) or <code>Azure Document Intelligence</code> (paid, higher accuracy).</li>
+    <li><strong>Text Preprocessing:</strong> <code>Python</code> (via Tauri sidecar) + <code>spaCy</code> / <code>nltk</code> for tokenization and normalization.</li>
+    <li><strong>Excel Generation:</strong> <code>exceljs</code> (Node) or <code>rust_xlsxwriter</code> (Rust native).</li>
+  </ul>
+</div>
+
+<h2 id="s5"><span style="font-size:1.3rem;">🔍</span> 5. Plagiarism Detection Engine (Deep Dive)</h2>
+
+<div class="highlight-box">
+  <strong>Critical Insight:</strong> Most classroom plagiarism is <em>not</em> from the internet — it's student-to-student copying. Your app must excel at <strong>intra-class similarity detection</strong>, which most tools ignore.
+</div>
+
+<h3>5.1 Multi-Layer Detection Architecture</h3>
+
+<h4>Layer 1: Fingerprinting (Winnowing Algorithm)</h4>
+<div class="card">
+  <p><strong>What it does:</strong> Detects exact and near-exact copying, even with minor edits.</p>
+  <ul>
+    <li>Break text into <strong>k-grams</strong> (overlapping sequences of k words, e.g., k=5).</li>
+    <li>Hash each k-gram using a rolling hash function.</li>
+    <li>Select a subset of hashes using <strong>Winnowing</strong> (selects minimum hash in each window) to create a compact fingerprint.</li>
+    <li>Compare fingerprints between all student pairs using Jaccard similarity.</li>
+    <li><strong>Complexity:</strong> O(n) per document, very fast for 100+ submissions.</li>
+  </ul>
+  <pre><code># Pseudocode: Winnowing Fingerprinting
+def winnow(text, k=5, w=4):
+    tokens = preprocess(text)  # lowercase, remove punctuation
+    hashes = [rolling_hash(tokens[i:i+k]) for i in range(len(tokens)-k+1)]
+    fingerprints = set()
+    for i in range(len(hashes) - w + 1):
+        window = hashes[i:i+w]
+        min_hash = min(window)
+        fingerprints.add(min_hash)
+    return fingerprints
+
+similarity = jaccard(fingerprints_a, fingerprints_b)</code></pre>
+</div>
+
+<h4>Layer 2: Semantic Similarity (Sentence Embeddings)</h4>
+<div class="card">
+  <p><strong>What it does:</strong> Catches students who paraphrase or reorder sentences.</p>
+  <ul>
+    <li>Convert each answer into sentence embeddings using <code>all-MiniLM-L6-v2</code> (384-dim vectors).</li>
+    <li>Compute <strong>cosine similarity</strong> between embedding vectors of different students.</li>
+    <li>Flag pairs with similarity &gt; 0.85 (threshold configurable by teacher).</li>
+    <li><strong>Advantage:</strong> "The quick brown fox" and "A fast auburn fox" will have high similarity despite different words.</li>
+  </ul>
+</div>
+
+<h4>Layer 3: Stylometric Analysis</h4>
+<div class="card">
+  <p><strong>What it does:</strong> Flags when a student's writing style suddenly changes (indicates ghostwriting or AI generation).</p>
+  <ul>
+    <li>Extract features: average sentence length, lexical diversity (type-token ratio), punctuation frequency, function word distribution.</li>
+    <li>Compare current submission against student's historical submissions.</li>
+    <li>Significant deviation (&gt; 2 std dev) triggers a "Style Anomaly" flag.</li>
+  </ul>
+</div>
+
+<h3>5.2 Clustering &amp; Visualization</h3>
+<div class="card">
+  <ul>
+    <li><strong>Graph-based clustering:</strong> Students are nodes; edges represent similarity &gt; threshold. Connected components form "copy clusters."</li>
+    <li><strong>Force-directed graph view:</strong> Visual map where clustered nodes pull together — teachers instantly see cheating rings.</li>
+    <li><strong>Pairwise diff viewer:</strong> Color-coded side-by-side comparison with matching phrases highlighted.</li>
+  </ul>
+</div>
+
+<h3>5.3 Thresholds &amp; False Positive Control</h3>
+<div class="warning-box">
+  <strong>Reporting Balance:</strong> The system should default to <strong>conservative thresholds</strong> to avoid false accusations. Teachers can tighten thresholds if they want stricter checking.
+  <ul style="margin-top:0.5rem;">
+    <li><strong>Default Fingerprint Similarity Threshold:</strong> 40% (flags for review, not accusation)</li>
+    <li><strong>Default Semantic Similarity Threshold:</strong> 80%</li>
+    <li><strong>Confidence Labels:</strong> "High Confidence" (&gt;70%), "Medium Confidence" (40–70%), "Low Confidence" (&lt;40%)</li>
+  </ul>
+</div>
+
+<h2 id="s6"><span style="font-size:1.3rem;">🤖</span> 6. AI Grading Engine (Deep Dive)</h2>
+
+<h3>6.1 Evaluation Prompt Engineering</h3>
+<div class="card">
+  <p>The quality of AI grading depends entirely on the prompt. Here is the recommended structured prompt template:</p>
+  <pre><code>You are an experienced teacher grading a student assignment.
+
+ASSIGNMENT QUESTION:
+{question_text}
+
+MODEL ANSWER (for reference):
+{model_answer}
+
+RUBRIC:
+{criteria_json}
+
+STUDENT ANSWER:
+{student_answer}
+
+INSTRUCTIONS:
+1. Evaluate the student answer against EACH rubric criterion independently.
+2. Assign a score for each criterion (0 to max marks).
+3. Provide a 1-2 sentence justification for each score, citing specific evidence from the student answer.
+4. Calculate the total score.
+5. Provide an overall summary feedback (2-3 sentences) highlighting strengths and 1 specific improvement area.
+6. Be fair but strict. Partial credit is allowed. If the answer is blank or irrelevant, score 0.
+
+OUTPUT FORMAT (strict JSON):
+{
+  "criteria": [
+    {"name": "...", "max_marks": 5, "awarded": 3, "justification": "..."}
+  ],
+  "total_score": 15,
+  "max_score": 20,
+  "overall_feedback": "...",
+  "confidence": "high|medium|low"
+}</code></pre>
+</div>
+
+<h3>6.2 Handling Different Question Types</h3>
+<table>
+  <tr>
+    <th>Question Type</th>
+    <th>AI Approach</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>Short Answer (1–3 lines)</td>
+    <td>Direct LLM evaluation with keyword matching backup</td>
+    <td>Fast, high accuracy</td>
+  </tr>
+  <tr>
+    <td>Long Essay</td>
+    <td>Chunk into paragraphs → evaluate per rubric criterion → aggregate</td>
+    <td>Prevents context window overflow</td>
+  </tr>
+  <tr>
+    <td>Mathematical / STEM</td>
+    <td>LaTeX parsing + symbolic math check (SymPy) + LLM reasoning</td>
+    <td>Hybrid approach recommended</td>
+  </tr>
+  <tr>
+    <td>Code Assignments</td>
+    <td>AST parsing + test case execution + LLM code review</td>
+    <td>Requires sandboxed execution</td>
+  </tr>
+  <tr>
+    <td>Handwritten (Image)</td>
+    <td>OCR (Tesseract/Azure) → text → standard pipeline</td>
+    <td>OCR error rate affects grading accuracy</td>
+  </tr>
+</table>
+
+<h3>6.3 Teacher-in-the-Loop Learning</h3>
+<div class="card">
+  <ul>
+    <li><strong>Override Tracking:</strong> When a teacher changes an AI score, the system stores the triplet: (student answer, original AI score, teacher score).</li>
+    <li><strong>Few-Shot Improvement:</strong> These corrections are added as few-shot examples in future prompts for that teacher's assignments.</li>
+    <li><strong>Rubric Refinement Suggestions:</strong> If teachers consistently override a particular criterion, the system suggests rubric rewording for clarity.</li>
+  </ul>
+</div>
+
+<h2 id="s7"><span style="font-size:1.3rem;">🎨</span> 7. UI/UX Design for Teachers</h2>
+
+<div class="highlight-box">
+  <strong>Design Philosophy:</strong> Teachers are not power users. They are time-poor, stressed, and need tools that feel familiar. Every extra click is friction. Every unfamiliar pattern is a barrier.
+</div>
+
+<h3>7.1 Core Design Principles</h3>
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">🧹 Simplicity &amp; Clarity</div>
+    <p>No clutter. No jargon. One primary action per screen. Use familiar metaphors: "Gradebook", "Red Pen", "Class List".</p>
+  </div>
+  <div class="card">
+    <div class="card-title">🔄 Consistency</div>
+    <p>Same button styles, same color meanings (red = flag, green = done, amber = pending), same navigation across all screens.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡ Instant Feedback</div>
+    <p>Progress bars for batch operations. Toast notifications for saves. No silent failures. Teachers must <em>trust</em> the system.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">♿ Accessibility</div>
+    <p>WCAG 2.1 AA compliance. Minimum 4.5:1 contrast. Keyboard navigation. Screen reader support. Adjustable font sizes.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">📱 Responsive Layout</div>
+    <p>Works on 13" laptops (common teacher device) up to 27" monitors. Collapsible sidebars. Scalable content.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">🛡️ Error Forgiveness</div>
+    <p>Undo for grade changes. Confirmation for destructive actions. Auto-save every 30 seconds. Recovery from crashes.</p>
+  </div>
+</div>
+
+<h3>7.2 Recommended Screen Flow</h3>
+<div class="card">
+  <ol>
+    <li><strong>Home / Dashboard</strong> — Recent assignments, quick stats ("3 assignments pending grading"), one-click "New Assignment".</li>
+    <li><strong>Assignment Setup</strong> — Upload question paper → Define rubric (visual drag-and-drop) → Upload model answer (optional) → Import roster.</li>
+    <li><strong>Submission Inbox</strong> — Drag-and-drop student files → Auto-match to roster → Visual indicators: ✅ Submitted, ❌ Missing, ⚠️ Unmatched.</li>
+    <li><strong>Integrity Review</strong> — Cluster graph view → Click cluster to see pairwise diffs → Teacher marks "Confirmed Cheat" or "False Positive".</li>
+    <li><strong>Grading Workspace</strong> — Split pane: Student answer (left) | AI scores &amp; feedback (right) | Teacher can edit any score with one click.</li>
+    <li><strong>Export &amp; Share</strong> — Preview Excel → Choose save location → One-click generate → Open folder button.</li>
+  </ol>
+</div>
+
+<h3>7.3 Color Psychology for Teachers</h3>
+<table>
+  <tr>
+    <th>Color</th>
+    <th>Use Case</th>
+    <th>Hex</th>
+  </tr>
+  <tr>
+    <td><span style="display:inline-block;width:20px;height:20px;background:#2563eb;border-radius:4px;vertical-align:middle;"></span> Primary Blue</td>
+    <td>Main actions, navigation, trust</td>
+    <td>#2563EB</td>
+  </tr>
+  <tr>
+    <td><span style="display:inline-block;width:20px;height:20px;background:#10b981;border-radius:4px;vertical-align:middle;"></span> Success Green</td>
+    <td>Completed, submitted, correct</td>
+    <td>#10B981</td>
+  </tr>
+  <tr>
+    <td><span style="display:inline-block;width:20px;height:20px;background:#f59e0b;border-radius:4px;vertical-align:middle;"></span> Warning Amber</td>
+    <td>Pending, medium confidence, needs review</td>
+    <td>#F59E0B</td>
+  </tr>
+  <tr>
+    <td><span style="display:inline-block;width:20px;height:20px;background:#ef4444;border-radius:4px;vertical-align:middle;"></span> Alert Red</td>
+    <td>Missing, high similarity, incorrect</td>
+    <td>#EF4444</td>
+  </tr>
+  <tr>
+    <td><span style="display:inline-block;width:20px;height:20px;background:#f8fafc;border-radius:4px;vertical-align:middle;border:1px solid #cbd5e1;"></span> Neutral Gray</td>
+    <td>Backgrounds, borders, inactive states</td>
+    <td>#F8FAFC</td>
+  </tr>
+</table>
+
+<h2 id="s8"><span style="font-size:1.3rem;">🏛️</span> 8. Data Flow &amp; System Architecture</h2>
+
+<h3>8.1 High-Level Architecture</h3>
+<div class="card">
+  <pre style="background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         TEACHER'S COMPUTER                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
+│  │   React UI  │  │  Tauri/Rust │  │ Local SQLite│  │  AI Engine  │  │
+│  │  (Frontend) │◄─┤  (Backend)  │◄─┤   (Cache)   │◄─┤  (Python)   │  │
+│  └─────────────┘  └──────┬──────┘  └─────────────┘  └──────┬──────┘  │
+│                          │                                    │         │
+│                          ▼                                    ▼         │
+│                   ┌─────────────┐                    ┌─────────────┐    │
+│                   │ File System │                    │  LLM API    │    │
+│                   │ (Submissions│                    │ (Cloud/Local)│   │
+│                   │  & Exports) │                    └─────────────┘    │
+│                   └─────────────┘                                      │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ (Optional)
+                    ┌─────────────────────┐
+                    │   Cloud Sync /      │
+                    │   Backup Service    │
+                    │   (Future Phase)    │
+                    └─────────────────────┘
+  </pre>
+</div>
+
+<h3>8.2 Data Storage Strategy</h3>
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">💾 Local-First Architecture</div>
+    <ul>
+      <li><strong>SQLite</strong> for structured data: rosters, assignments, scores, rubrics, teacher preferences.</li>
+      <li><strong>File System</strong> for blobs: student submissions (PDFs, images), exported Excel files.</li>
+      <li><strong>Local Embeddings Store</strong>: FAISS or Annoy index for fast similarity search across submissions.</li>
+      <li><strong>Why local-first?</strong> Privacy (student data never leaves the machine), speed (no network latency), offline capability.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">☁️ Optional Cloud Layer (Phase 2)</div>
+    <ul>
+      <li>Encrypted backup of gradebooks to teacher's Google Drive / OneDrive.</li>
+      <li>Cross-device sync for teachers who use multiple computers.</li>
+      <li>Institutional dashboard for principals (aggregated anonymized stats).</li>
+    </ul>
+  </div>
+</div>
+
+<h3>8.3 Processing Pipeline</h3>
+<div class="card">
+  <pre style="background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;">
+Step 1: INGEST
+  └─► Teacher uploads files (drag-drop or folder select)
+  └─► System extracts text (PDF → pdfplumber, Image → Tesseract OCR, DOCX → python-docx)
+  └─► Auto-match filenames to roster using regex patterns
+
+Step 2: INTEGRITY CHECK
+  └─► Run Winnowing fingerprinting on all text pairs → similarity matrix
+  └─► Run sentence embeddings on all pairs → semantic similarity matrix
+  └─► Aggregate: weighted average of both scores
+  └─► Cluster graph generation (connected components)
+  └─► Teacher reviews flagged pairs in visual diff viewer
+
+Step 3: AI EVALUATION
+  └─► For each unmatched submission:
+      ├─► Chunk text if &gt; 2000 words
+      ├─► Build evaluation prompt with rubric + model answer
+      ├─► Call LLM API (or local model)
+      ├─► Parse JSON response
+      └─► Store scores + feedback in SQLite
+  └─► Teacher reviews in Grading Workspace, overrides if needed
+
+Step 4: REPORTING
+  └─► Aggregate all scores per student
+  └─► Calculate class statistics (mean, median, std dev, grade distribution)
+  └─► Generate Excel workbook using rust_xlsxwriter
+  └─► Save to teacher-specified path
+  └─► Open file or folder on completion
+  </pre>
+</div>
+
+<h2 id="s9"><span style="font-size:1.3rem;">🗓️</span> 9. Implementation Roadmap</h2>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 0: Foundation (Weeks 1–2)</div>
+    <div class="timeline-meta">Setup &amp; Architecture</div>
+    <ul>
+      <li>Initialize Tauri + React + TypeScript project</li>
+      <li>Set up Tailwind CSS + shadcn/ui component library</li>
+      <li>Design database schema (SQLite via rusqlite)</li>
+      <li>Create project structure and CI/CD pipeline (GitHub Actions)</li>
+      <li>Build basic navigation shell and theme system</li>
+    </ul>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 1: Core Ingestion (Weeks 3–5)</div>
+    <div class="timeline-meta">Submission Tracking</div>
+    <ul>
+      <li>Drag-and-drop file upload with progress</li>
+      <li>Text extraction pipeline (PDF, DOCX, TXT, Images)</li>
+      <li>CSV roster import with column mapping UI</li>
+      <li>Auto-matching logic with manual override</li>
+      <li>Missing submission report generation</li>
+    </ul>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 2: Integrity Engine (Weeks 6–8)</div>
+    <div class="timeline-meta">Plagiarism Detection</div>
+    <ul>
+      <li>Implement Winnowing fingerprinting in Rust</li>
+      <li>Integrate sentence-transformers via Python sidecar</li>
+      <li>Build similarity matrix computation</li>
+      <li>Cluster graph visualization (D3.js or React Flow)</li>
+      <li>Side-by-side diff viewer with color highlighting</li>
+    </ul>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 3: AI Grading (Weeks 9–12)</div>
+    <div class="timeline-meta">Evaluation Engine</div>
+    <ul>
+      <li>Rubric builder UI (add criteria, set max marks, reorder)</li>
+      <li>Model answer upload and storage</li>
+      <li>LLM prompt engineering and JSON parsing</li>
+      <li>Grading workspace (split-pane review interface)</li>
+      <li>Teacher override with feedback learning</li>
+    </ul>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 4: Reporting (Weeks 13–14)</div>
+    <div class="timeline-meta">Export System</div>
+    <ul>
+      <li>Excel generation with multiple sheets</li>
+      <li>Template system for reusable formats</li>
+      <li>Class statistics and visualizations</li>
+      <li>Custom save location with auto-naming</li>
+    </ul>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-title">Phase 5: Polish &amp; Release (Weeks 15–16)</div>
+    <div class="timeline-meta">QA, Packaging, Distribution</div>
+    <ul>
+      <li>Cross-platform testing (Windows 10/11, macOS Intel &amp; Apple Silicon)</li>
+      <li>Accessibility audit (keyboard nav, screen reader, contrast)</li>
+      <li>Performance optimization (large class sizes: 200+ students)</li>
+      <li>Installer creation (MSI for Windows, DMG for macOS)</li>
+      <li>Website + documentation + tutorial videos</li>
+    </ul>
+  </div>
+</div>
+
+<div class="success-box">
+  <strong>Total MVP Timeline: ~16 weeks (4 months)</strong> with a team of 2 developers (1 Rust/backend, 1 React/frontend) and 1 UX designer. A solo developer should budget 6–8 months.
+</div>
+
+<h2 id="s10"><span style="font-size:1.3rem;">⚔️</span> 10. Competitive Analysis</h2>
+
+<table>
+  <tr>
+    <th>Competitor</th>
+    <th>Strengths</th>
+    <th>Weaknesses</th>
+    <th>GCR Differentiator</th>
+  </tr>
+  <tr>
+    <td><strong>Gradescope</strong></td>
+    <td>Excellent for STEM, answer grouping, LMS integration</td>
+    <td>Web-only, institutional pricing, steep learning curve, no local processing</td>
+    <td>Desktop app, local privacy, simpler UI, cross-student plagiarism focus</td>
+  </tr>
+  <tr>
+    <td><strong>Turnitin</strong></td>
+    <td>Gold standard for web plagiarism, institutional trust</td>
+    <td>Expensive, web-only, weak at student-to-student copying within class, no AI grading</td>
+    <td>Intra-class cheating detection, AI grading, affordable individual pricing</td>
+  </tr>
+  <tr>
+    <td><strong>CoGrader</strong></td>
+    <td>Google Classroom integration, 80% time savings</td>
+    <td>Web-only, requires Google Classroom, limited plagiarism detection</td>
+    <td>Works with any submission method, stronger integrity checking, offline capable</td>
+  </tr>
+  <tr>
+    <td><strong>Brisk Teaching</strong></td>
+    <td>Chrome extension, inline Google Docs feedback</td>
+    <td>Browser-dependent, no batch processing, no Excel export</td>
+    <td>Batch processing of entire classes, comprehensive reporting, standalone app</td>
+  </tr>
+  <tr>
+    <td><strong>MagicSchool AI</strong></td>
+    <td>80+ tools, lesson planning, IEPs</td>
+    <td>Jack of all trades, not specialized for grading, web-only</td>
+    <td>Deep specialization in grading pipeline, desktop performance, focused workflow</td>
+  </tr>
+</table>
+
+<div class="highlight-box">
+  <strong>Market Gap Identified:</strong> There is no desktop-native, privacy-first, teacher-focused tool that combines <strong>submission tracking + intra-class plagiarism + AI grading + Excel export</strong> in a single seamless workflow.
+</div>
+
+<h2 id="s11"><span style="font-size:1.3rem;">🔒</span> 11. Compliance &amp; Privacy</h2>
+
+<div class="danger-box">
+  <strong>Critical:</strong> Student data is highly sensitive. A single privacy misstep can destroy trust and invite legal action. Design privacy into the architecture from day one.
+</div>
+
+<h3>11.1 Regulatory Requirements</h3>
+<table>
+  <tr>
+    <th>Regulation</th>
+    <th>Applies To</th>
+    <th>Key Requirements for GCR</th>
+  </tr>
+  <tr>
+    <td><strong>FERPA</strong> (US)</td>
+    <td>US K-12 &amp; Higher Ed</td>
+    <td>Local storage default; no cloud upload without explicit consent; data encryption at rest</td>
+  </tr>
+  <tr>
+    <td><strong>GDPR</strong> (EU)</td>
+    <td>EU teachers &amp; students</td>
+    <td>Right to deletion, data portability (Excel export helps!), privacy by design, no unnecessary data collection</td>
+  </tr>
+  <tr>
+    <td><strong>COPPA</strong> (US)</td>
+    <td>Students under 13</td>
+    <td>No account creation for students; teacher acts as data controller; no behavioral tracking</td>
+  </tr>
+</table>
+
+<h3>11.2 Privacy-By-Design Features</h3>
+<div class="card">
+  <ul>
+    <li><strong>Local-First Default:</strong> All student submissions, grades, and rubrics stored on teacher's machine. No cloud required.</li>
+    <li><strong>Optional Cloud:</strong> If cloud sync is added, use teacher's own storage (Google Drive, OneDrive) with client-side encryption.</li>
+    <li><strong>LLM Privacy Mode:</strong> Option to use local LLM (e.g., Llama 3 via Ollama) instead of cloud API for schools with strict data policies.</li>
+    <li><strong>No Student Accounts:</strong> Teachers manage everything. Students never interact with the app — eliminating COPPA complexity.</li>
+    <li><strong>Auto-Purge:</strong> Option to automatically delete raw submission files after Excel export, keeping only grades.</li>
+    <li><strong>Audit Log:</strong> Track who graded what and when (useful for grade disputes).</li>
+  </ul>
+</div>
+
+<h2 id="s12"><span style="font-size:1.3rem;">💰</span> 12. Monetization Strategy</h2>
+
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">🆓 Free Tier</div>
+    <ul>
+      <li>Up to 30 students per class</li>
+      <li>Up to 5 assignments per month</li>
+      <li>Basic plagiarism detection</li>
+      <li>Standard Excel export</li>
+      <li>Community support</li>
+    </ul>
+    <p><strong>Goal:</strong> Word-of-mouth adoption among individual teachers.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">⭐ Pro Tier — $9.99/month</div>
+    <ul>
+      <li>Unlimited students &amp; assignments</li>
+      <li>Advanced plagiarism (semantic + stylometry)</li>
+      <li>AI grading with explainable feedback</li>
+      <li>Custom Excel templates</li>
+      <li>Priority email support</li>
+    </ul>
+    <p><strong>Target:</strong> Individual teachers who grade heavily.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">🏫 School Tier — $4/student/year</div>
+    <ul>
+      <li>Everything in Pro</li>
+      <li>Site license for all teachers</li>
+      <li>LMS integration (Google Classroom, Canvas)</li>
+      <li>Admin dashboard &amp; analytics</li>
+      <li>Dedicated onboarding &amp; support</li>
+      <li>SSO (Single Sign-On)</li>
+    </ul>
+    <p><strong>Target:</strong> School districts and private institutions.</p>
+  </div>
+</div>
+
+<h2 id="s13"><span style="font-size:1.3rem;">⚠️</span> 13. Risk Assessment &amp; Mitigation</h2>
+
+<table>
+  <tr>
+    <th>Risk</th>
+    <th>Likelihood</th>
+    <th>Impact</th>
+    <th>Mitigation</th>
+  </tr>
+  <tr>
+    <td>AI grading inaccuracy / bias</td>
+    <td>Medium</td>
+    <td>High</td>
+    <td>Teacher-in-the-loop design; confidence scores; clear "AI-suggested" labels; never auto-finalize grades</td>
+  </tr>
+  <tr>
+    <td>False plagiarism accusations</td>
+    <td>Medium</td>
+    <td>Very High</td>
+    <td>Conservative thresholds; "confidence levels" not binary flags; teacher must confirm before any action; side-by-side diff for evidence</td>
+  </tr>
+  <tr>
+    <td>Data privacy breach</td>
+    <td>Low</td>
+    <td>Very High</td>
+    <td>Local-first architecture; no cloud by default; encryption; no student PII collection beyond name/roll number</td>
+  </tr>
+  <tr>
+    <td>Teacher resistance to new tech</td>
+    <td>High</td>
+    <td>Medium</td>
+    <td>Extreme simplicity in UI; 5-minute onboarding video; familiar metaphors; free tier for trial</td>
+  </tr>
+  <tr>
+    <td>OCR failure on poor handwriting</td>
+    <td>High</td>
+    <td>Medium</td>
+    <td>Clear confidence indicator on OCR; fallback to manual text entry; support for typed submissions primarily</td>
+  </tr>
+  <tr>
+    <td>LLM API costs / rate limits</td>
+    <td>Medium</td>
+    <td>Medium</td>
+    <td>Caching of similar answers; batch processing; local LLM option; cost estimation shown before grading</td>
+  </tr>
+  <tr>
+    <td>Competitor response (Turnitin, Gradescope adding AI)</td>
+    <td>Medium</td>
+    <td>Medium</td>
+    <td>Focus on desktop-native experience and intra-class plagiarism as moats; continuous teacher feedback loop</td>
+  </tr>
+</table>
+
+<h2 id="s14"><span style="font-size:1.3rem;">📊</span> 14. Success Metrics (KPIs)</h2>
+
+<div class="grid-3">
+  <div class="metric">
+    <div class="metric-value">&lt;5 min</div>
+    <div class="metric-label">Time to first graded assignment<br>(onboarding → export)</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">80%+</div>
+    <div class="metric-label">Teacher-reported time savings<br>vs manual grading</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">&lt;2%</div>
+    <div class="metric-label">False positive rate<br>on plagiarism flags</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">&lt;10 MB</div>
+    <div class="metric-label">Installer size<br>(Tauri advantage)</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">&lt;3 sec</div>
+    <div class="metric-label">App launch time<br>(cold start)</div>
+  </div>
+  <div class="metric">
+    <div class="metric-value">NPS &gt;50</div>
+    <div class="metric-label">Teacher satisfaction score<br>after 30 days</div>
+  </div>
+</div>
+
+<h2>🚀 Final Recommendations</h2>
+
+<div class="card">
+  <ol>
+    <li><strong>Start with the MVP stack:</strong> Tauri + React + SQLite + Google Gemini API. This gives you the fastest path to a working prototype with professional quality.</li>
+    <li><strong>Build for one subject first:</strong> Focus on essay/short-answer grading for humanities. STEM (equations, code) adds significant complexity — defer to Phase 2.</li>
+    <li><strong>Recruit 5 beta teachers immediately:</strong> Their feedback during development is worth more than any market research. Offer free lifetime Pro access in exchange for weekly feedback sessions.</li>
+    <li><strong>Prioritize plagiarism over AI grading in MVP:</strong> Intra-class cheating detection is your unique differentiator. Nail this first — it builds trust. AI grading can be refined iteratively.</li>
+    <li><strong>Never auto-finalize grades:</strong> Every AI score must be labeled "Suggested" until the teacher clicks "Approve." This is your legal and ethical shield.</li>
+    <li><strong>Invest heavily in Excel export quality:</strong> Teachers live in Excel. A beautiful, well-formatted, auto-summarized Excel file will generate more word-of-mouth than any feature.</li>
+  </ol>
+</div>
+
+<div class="success-box">
+  <strong>The Bottom Line:</strong> GCR Simplified addresses a genuine, quantified pain point (140+ hours/year of grading). With the right technical stack (Tauri for lightweight desktop), a focused feature set, and an unwavering commitment to teacher-friendly design, this app has strong product-market fit potential. The key is execution simplicity — resist feature creep, ship the core pipeline, and let teachers guide your roadmap.
+</div>
+
+<footer>
+  <p>Report generated for GCR Simplified Project | August 2026</p>
+  <p>This blueprint is based on 2026 market research, competitive analysis, and technical best practices for educational software.</p>
+</footer>
+
+</div>
+</body>
+</html>

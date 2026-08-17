@@ -1,0 +1,262 @@
+// ── GCR Simplified — Typed IPC Wrappers ──
+// Wraps Tauri invoke() calls with proper TypeScript types
+
+import { invoke } from "@tauri-apps/api/core";
+import type {
+  RubricCriterion,
+  GoogleAuthStatus,
+  GoogleCourse,
+  GoogleCourseWork,
+  GoogleStudent,
+  GoogleSubmission,
+  MissingStudent,
+  DownloadResult,
+  ExtractionResult,
+  PlagiarismReport,
+  PlagiarismRunMeta,
+  AppSettings,
+  Grade,
+  GradebookView,
+  GradeSubmissionResult,
+  GradeAllResult,
+  GradeOverride,
+  DashboardStats,
+} from "./types";
+
+// ── Rubric Criteria ──
+
+export async function createRubricCriterion(params: {
+  assignmentId: string;
+  name: string;
+  description?: string;
+  maxMarks: number;
+  sortOrder: number;
+}): Promise<RubricCriterion> {
+  return invoke<RubricCriterion>("create_rubric_criterion", {
+    assignmentId: params.assignmentId,
+    name: params.name,
+    description: params.description ?? null,
+    maxMarks: params.maxMarks,
+    sortOrder: params.sortOrder,
+  });
+}
+
+export async function getRubricCriteria(assignmentId: string): Promise<RubricCriterion[]> {
+  return invoke<RubricCriterion[]>("get_rubric_criteria", { assignmentId });
+}
+
+export async function updateRubricCriterion(params: {
+  id: string;
+  name: string;
+  description?: string;
+  maxMarks: number;
+  sortOrder: number;
+}): Promise<RubricCriterion> {
+  return invoke<RubricCriterion>("update_rubric_criterion", {
+    id: params.id,
+    name: params.name,
+    description: params.description ?? null,
+    maxMarks: params.maxMarks,
+    sortOrder: params.sortOrder,
+  });
+}
+
+export async function deleteRubricCriterion(id: string): Promise<void> {
+  return invoke<void>("delete_rubric_criterion", { id });
+}
+
+// ── Google Auth ──
+
+export async function startGoogleLogin(clientId: string, clientSecret: string): Promise<GoogleAuthStatus> {
+  return invoke<GoogleAuthStatus>("start_google_login", { clientId, clientSecret });
+}
+
+export async function cancelGoogleLogin(): Promise<void> {
+  return invoke<void>("cancel_google_login");
+}
+
+export async function getGoogleAuthStatus(): Promise<GoogleAuthStatus> {
+  return invoke<GoogleAuthStatus>("get_google_auth_status");
+}
+
+export async function googleLogout(): Promise<void> {
+  return invoke<void>("google_logout");
+}
+
+// ── Google Classroom ──
+
+export async function listGoogleCourses(force?: boolean): Promise<GoogleCourse[]> {
+  return invoke<GoogleCourse[]>("list_google_courses", { force: force ?? false });
+}
+
+export async function listGoogleCoursework(courseId: string, force?: boolean): Promise<GoogleCourseWork[]> {
+  return invoke<GoogleCourseWork[]>("list_google_coursework", { courseId, force: force ?? false });
+}
+
+export async function listGoogleStudents(courseId: string, force?: boolean): Promise<GoogleStudent[]> {
+  return invoke<GoogleStudent[]>("list_google_students", { courseId, force: force ?? false });
+}
+
+export async function listGoogleSubmissions(
+  courseId: string,
+  courseWorkId: string,
+  force?: boolean
+): Promise<GoogleSubmission[]> {
+  return invoke<GoogleSubmission[]>("list_google_submissions", { courseId, courseWorkId, force: force ?? false });
+}
+
+export async function getMissingSubmissions(courseId: string, courseWorkId: string): Promise<MissingStudent[]> {
+  return invoke<MissingStudent[]>("get_missing_submissions", { courseId, courseWorkId });
+}
+
+export async function nudgeStudent(params: {
+  courseId: string;
+  courseWorkId: string;
+  studentEmail: string;
+  studentName: string;
+}): Promise<void> {
+  return invoke<void>("nudge_student", {
+    courseId: params.courseId,
+    courseWorkId: params.courseWorkId,
+    studentEmail: params.studentEmail,
+    studentName: params.studentName,
+  });
+}
+
+// ── Google Drive ──
+
+export async function downloadSubmissionFile(params: {
+  fileId: string;
+  fileName: string;
+  courseId: string;
+  courseWorkId: string;
+  studentId: string;
+}): Promise<DownloadResult> {
+  return invoke<DownloadResult>("download_submission_file", {
+    fileId: params.fileId,
+    fileName: params.fileName,
+    courseId: params.courseId,
+    courseWorkId: params.courseWorkId,
+    studentId: params.studentId,
+  });
+}
+
+export async function downloadAllSubmissions(courseId: string, courseWorkId: string): Promise<DownloadResult[]> {
+  return invoke<DownloadResult[]>("download_all_submissions", { courseId, courseWorkId });
+}
+
+// ── Text Extraction ──
+
+export async function extractText(filePath: string): Promise<ExtractionResult> {
+  return invoke<ExtractionResult>("extract_text", { filePath });
+}
+
+export async function extractAllSubmissions(courseId: string, courseWorkId: string): Promise<ExtractionResult[]> {
+  return invoke<ExtractionResult[]>("extract_all_submissions", { courseId, courseWorkId });
+}
+
+export async function getExtractionResult(filePath: string): Promise<ExtractionResult | null> {
+  return invoke<ExtractionResult | null>("get_extraction_result", { filePath });
+}
+
+// ── Plagiarism Detection ──
+
+export async function runPlagiarismCheck(
+  courseId: string,
+  courseWorkId: string,
+  fingerprintThreshold?: number,
+  semanticThreshold?: number
+): Promise<PlagiarismReport> {
+  return invoke<PlagiarismReport>("run_plagiarism_check", {
+    courseId,
+    courseWorkId,
+    fingerprintThreshold: fingerprintThreshold ?? null,
+    semanticThreshold: semanticThreshold ?? null,
+  });
+}
+
+export async function listPlagiarismRuns(courseId: string, courseWorkId: string): Promise<PlagiarismRunMeta[]> {
+  return invoke<PlagiarismRunMeta[]>("list_plagiarism_runs", { courseId, courseWorkId });
+}
+
+export async function getPlagiarismRun(runId: string): Promise<PlagiarismReport> {
+  return invoke<PlagiarismReport>("get_plagiarism_run", { runId });
+}
+
+// ── Settings ──
+
+export async function getSettings(): Promise<AppSettings> {
+  return invoke<AppSettings>("get_settings");
+}
+
+export async function saveSettings(params: {
+  gemini_api_key?: string;
+  gemini_model?: string;
+  default_fingerprint_threshold?: number;
+  default_semantic_threshold?: number;
+  theme?: string;
+}): Promise<void> {
+  return invoke<void>("save_settings", params);
+}
+
+// ── Grading ──
+
+export async function gradeSubmission(submissionId: string): Promise<GradeSubmissionResult> {
+  return invoke<GradeSubmissionResult>("grade_submission", { submissionId });
+}
+
+export async function gradeAllAssignment(assignmentId: string): Promise<GradeAllResult> {
+  return invoke<GradeAllResult>("grade_all_assignment", { assignmentId });
+}
+
+export async function updateGradeOverride(params: GradeOverride): Promise<Grade> {
+  return invoke<Grade>("update_grade_override", {
+    grade_id: params.grade_id,
+    teacher_score: params.teacher_score,
+    teacher_feedback: params.teacher_feedback,
+  });
+}
+
+export async function approveGrade(gradeId: string, approved: boolean): Promise<Grade> {
+  return invoke<Grade>("approve_grade", { gradeId, approved });
+}
+
+export async function approveAllGrades(assignmentId: string): Promise<number> {
+  return invoke<number>("approve_all_grades", { assignmentId });
+}
+
+export async function getGradebook(assignmentId: string): Promise<GradebookView> {
+  return invoke<GradebookView>("get_gradebook", { assignmentId });
+}
+
+// ── Export ──
+
+export async function exportGradebook(params: {
+  assignmentId: string;
+  courseId?: string;
+  courseWorkId?: string;
+  savePath?: string;
+}): Promise<string> {
+  return invoke<string>("export_gradebook", {
+    assignmentId: params.assignmentId,
+    courseId: params.courseId ?? null,
+    courseWorkId: params.courseWorkId ?? null,
+    savePath: params.savePath ?? null,
+  });
+}
+
+// ── Dashboard ──
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  return invoke<DashboardStats>("get_dashboard_stats");
+}
+
+// ── Maintenance ──
+
+export async function purgeDownloadedSubmissions(): Promise<number> {
+  return invoke<number>("purge_downloaded_submissions");
+}
+
+export async function backupDatabase(destPath: string): Promise<string> {
+  return invoke<string>("backup_database", { destPath });
+}
