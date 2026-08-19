@@ -1,3 +1,4 @@
+use rand;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -7,6 +8,15 @@ const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta/
 /// Rough character cap for a submission (~8k tokens) to stay inside the model
 /// context window alongside the rubric + prompt.
 const MAX_INPUT_CHARS: usize = 32_000;
+
+/// Default HTTP timeout for Gemini API requests.
+const DEFAULT_TIMEOUT_SECS: u64 = 120;
+
+/// Maximum number of retry attempts for transient failures.
+const MAX_RETRIES: u32 = 3;
+
+/// Base delay for exponential backoff (milliseconds).
+const BASE_RETRY_DELAY_MS: u64 = 800;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiRequest {
@@ -62,10 +72,13 @@ pub struct CriterionGrade {
     pub justification: String,
 }
 
+#[derive(Debug)]
 pub struct GeminiClient {
     client: Client,
     api_key: String,
     model: String,
+    timeout_secs: u64,
+    max_retries: u32,
 }
 
 /// Truncate very long submissions at a paragraph boundary near the cap.
@@ -84,7 +97,7 @@ fn truncate_for_model(text: &str) -> String {
     clipped
 }
 
-/// Whether an API error is worth retrying once (5xx / server hiccups).
+/// Whether an API error is worth retrying (5xx / server hiccups / rate limit).
 fn is_retryable(error: &str) -> bool {
     error.contains("500")
         || error.contains("503")
@@ -93,16 +106,58 @@ fn is_retryable(error: &str) -> bool {
         || error.contains("504")
 }
 
+/// Sanitize error messages to avoid leaking internal details to frontend.
+fn sanitize_error(e: &dyn std::fmt::Display) -> String {
+    let msg = e.to_string();
+    // Remove potential sensitive data patterns
+    msg.replace(&['\n', '\r'][..], " ")
+        .split_whitespace()
+        .take(50)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Map HTTP status to user-friendly error without leaking response body.
+fn map_api_error(status: reqwest::StatusCode) -> String {
+    match status.as_u16() {
+        400 => "Invalid request to Gemini API".to_string(),
+        401 => "Invalid or missing Gemini API key".to_string(),
+        403 => "Gemini API access forbidden".to_string(),
+        404 => "Gemini model not found".to_string(),
+        429 => "Gemini API rate limit exceeded".to_string(),
+        500 => "Gemini API internal error".to_string(),
+        502 => "Gemini API bad gateway".to_string(),
+        503 => "Gemini API temporarily unavailable".to_string(),
+        504 => "Gemini API gateway timeout".to_string(),
+        code => format!("Gemini API error ({})", code),
+    }
+}
+
 impl GeminiClient {
-    pub fn new(api_key: String, model: Option<String>) -> Self {
-        Self {
-            client: Client::builder()
-                .timeout(Duration::from_secs(120))
-                .build()
-                .expect("Failed to create HTTP client"),
+    pub fn new(api_key: String, model: Option<String>) -> Result<Self, String> {
+        Self::with_config(api_key, model, DEFAULT_TIMEOUT_SECS, MAX_RETRIES)
+    }
+
+    pub fn with_config(
+        api_key: String,
+        model: Option<String>,
+        timeout_secs: u64,
+        max_retries: u32,
+    ) -> Result<Self, String> {
+        if api_key.trim().is_empty() {
+            return Err("Gemini API key cannot be empty".to_string());
+        }
+        let client = Client::builder()
+            .timeout(Duration::from_secs(timeout_secs))
+            .build()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+        Ok(Self {
+            client,
             api_key,
             model: model.unwrap_or_else(|| "gemini-2.5-flash".to_string()),
-        }
+            timeout_secs,
+            max_retries,
+        })
     }
 
     fn build_grading_prompt(
@@ -110,13 +165,14 @@ impl GeminiClient {
         rubric: &[RubricCriterion],
         model_answer: Option<&str>,
         student_text: &str,
-    ) -> String {
-        let rubric_json = serde_json::to_string_pretty(rubric).unwrap_or_default();
+    ) -> Result<String, String> {
+        let rubric_json = serde_json::to_string_pretty(rubric)
+            .map_err(|e| format!("Failed to serialize rubric: {}", e))?;
         let model_answer_section = model_answer
             .map(|ma| format!("\n\nMODEL ANSWER:\n{}", ma))
             .unwrap_or_default();
 
-        format!(
+        Ok(format!(
             r#"You are an expert grader. Grade the student's submission against the provided rubric.
 
 RUBRIC (JSON array of criteria):
@@ -134,7 +190,7 @@ INSTRUCTIONS:
 5. Output ONLY valid JSON matching the response schema.
 
 Be fair, consistent, and specific in your justifications."#
-        )
+        ))
     }
 
     fn build_response_schema(&self, _rubric: &[RubricCriterion]) -> serde_json::Value {
@@ -173,25 +229,28 @@ Be fair, consistent, and specific in your justifications."#
 
         // Cap the input so long essays stay within the model context window.
         let truncated = truncate_for_model(student_text);
-        let prompt = self.build_grading_prompt(rubric, model_answer, &truncated);
+        let prompt = self.build_grading_prompt(rubric, model_answer, &truncated)?;
         let schema = self.build_response_schema(rubric);
 
-        // Single retry on transient failures (5xx or malformed JSON).
+        // Exponential backoff with jitter for transient failures.
         let mut last_err: Option<String> = None;
-        for attempt in 0..2 {
+        for attempt in 0..self.max_retries {
             match self.call_gemini(&prompt, &schema, rubric).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    if attempt == 0 && is_retryable(&e) {
+                    if attempt < self.max_retries - 1 && is_retryable(&e) {
                         last_err = Some(e);
-                        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+                        let base_delay = BASE_RETRY_DELAY_MS * 2_u64.pow(attempt);
+                        let jitter = rand::random::<u64>() % 201;
+                        let delay = base_delay + jitter;
+                        tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                     } else {
                         return Err(e);
                     }
                 }
             }
         }
-        Err(last_err.unwrap_or_else(|| "Gemini request failed".to_string()))
+        Err(last_err.unwrap_or_else(|| "Gemini request failed after retries".to_string()))
     }
 
     async fn call_gemini(
@@ -226,18 +285,18 @@ Be fair, consistent, and specific in your justifications."#
             .json(&request)
             .send()
             .await
-            .map_err(|e| format!("Gemini API request failed: {}", e))?;
+            .map_err(|e| format!("Gemini API request failed: {}", sanitize_error(&e)))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(format!("Gemini API error ({}): {}", status, error_text));
+            let _ = response.text().await; // consume body to free connection
+            return Err(map_api_error(status));
         }
 
         let gemini_resp: GeminiResponse = response
             .json()
             .await
-            .map_err(|e| format!("Failed to parse Gemini response: {}", e))?;
+            .map_err(|e| format!("Failed to parse Gemini response: {}", sanitize_error(&e)))?;
 
         let response_text = gemini_resp
             .candidates
@@ -247,10 +306,7 @@ Be fair, consistent, and specific in your justifications."#
             .ok_or("Empty response from Gemini")?;
 
         let grading_result: GradingResult = serde_json::from_str(&response_text).map_err(|e| {
-            format!(
-                "Failed to parse grading JSON: {}. Response: {}",
-                e, response_text
-            )
+            format!("Failed to parse grading JSON: {}", sanitize_error(&e))
         })?;
 
         // Validate scores are within bounds
@@ -289,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_build_response_schema() {
-        let client = GeminiClient::new("test-key".to_string(), None);
+        let client = GeminiClient::new("test-key".to_string(), None).unwrap();
         let rubric = vec![
             RubricCriterion {
                 id: "c1".to_string(),
@@ -313,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_build_grading_prompt() {
-        let client = GeminiClient::new("test-key".to_string(), None);
+        let client = GeminiClient::new("test-key".to_string(), None).unwrap();
         let rubric = vec![RubricCriterion {
             id: "c1".to_string(),
             name: "Understanding".to_string(),
@@ -321,8 +377,9 @@ mod tests {
             max_marks: 10.0,
             sort_order: 1,
         }];
-        let prompt =
-            client.build_grading_prompt(&rubric, Some("Model answer here"), "Student answer here");
+        let prompt = client
+            .build_grading_prompt(&rubric, Some("Model answer here"), "Student answer here")
+            .unwrap();
         assert!(prompt.contains("RUBRIC"));
         assert!(prompt.contains("MODEL ANSWER"));
         assert!(prompt.contains("STUDENT SUBMISSION"));
@@ -360,5 +417,37 @@ mod tests {
         assert!(is_retryable("Gemini API error (429): boom"));
         assert!(!is_retryable("Gemini API error (400): bad request"));
         assert!(!is_retryable("Failed to parse grading JSON"));
+    }
+
+    #[test]
+    fn test_empty_api_key_rejected() {
+        let result = GeminiClient::new("".to_string(), None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+
+        let result = GeminiClient::new("   ".to_string(), None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sanitize_error() {
+        let err = std::io::Error::new(std::io::ErrorKind::Other, "test\nerror\rwith\twhitespace");
+        let sanitized = sanitize_error(&err);
+        assert!(!sanitized.contains('\n'));
+        assert!(!sanitized.contains('\r'));
+    }
+
+    #[test]
+    fn test_map_api_error() {
+        assert_eq!(map_api_error(reqwest::StatusCode::UNAUTHORIZED), "Invalid or missing Gemini API key");
+        assert_eq!(map_api_error(reqwest::StatusCode::TOO_MANY_REQUESTS), "Gemini API rate limit exceeded");
+        assert_eq!(map_api_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR), "Gemini API internal error");
+        assert_eq!(map_api_error(reqwest::StatusCode::BAD_GATEWAY), "Gemini API bad gateway");
+        assert_eq!(map_api_error(reqwest::StatusCode::SERVICE_UNAVAILABLE), "Gemini API temporarily unavailable");
+        assert_eq!(map_api_error(reqwest::StatusCode::GATEWAY_TIMEOUT), "Gemini API gateway timeout");
+        assert_eq!(map_api_error(reqwest::StatusCode::NOT_FOUND), "Gemini model not found");
+        assert_eq!(map_api_error(reqwest::StatusCode::FORBIDDEN), "Gemini API access forbidden");
+        assert_eq!(map_api_error(reqwest::StatusCode::BAD_REQUEST), "Invalid request to Gemini API");
+        assert_eq!(map_api_error(reqwest::StatusCode::from_u16(999).unwrap()), "Gemini API error (999)");
     }
 }

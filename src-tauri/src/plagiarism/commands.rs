@@ -8,31 +8,24 @@ use tauri::{AppHandle, Manager, State};
 fn collect_submission_texts(
     pool: &DbPool,
     submissions_dir: &std::path::Path,
-) -> Vec<(String, String, String)> {
+) -> Result<Vec<(String, String, String)>, String> {
     let mut submissions: Vec<(String, String, String)> = Vec::new();
 
-    let entries = match std::fs::read_dir(submissions_dir) {
-        Ok(e) => e,
-        Err(_) => return submissions,
-    };
+    let entries = std::fs::read_dir(submissions_dir)
+        .map_err(|e| format!("Failed to read submissions directory: {}", e))?;
 
     // Load the whole extraction cache once instead of opening a connection per file.
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(_) => return submissions,
-    };
+    let conn = pool.get().map_err(|e| e.to_string())?;
     let cache: std::collections::HashMap<String, String> = {
-        let mut stmt = match conn.prepare("SELECT file_path, extracted_text FROM extracted_texts") {
-            Ok(s) => s,
-            Err(_) => return submissions,
-        };
-        let iter = match stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        }) {
-            Ok(i) => i,
-            Err(_) => return submissions,
-        };
-        iter.filter_map(|r| r.ok()).collect()
+        let mut stmt = conn
+            .prepare("SELECT file_path, extracted_text FROM extracted_texts")
+            .map_err(|e| e.to_string())?;
+        let iter = stmt
+            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to read extraction cache: {}", e))?;
+        iter.into_iter().collect()
     };
 
     for entry in entries.flatten() {
@@ -75,7 +68,7 @@ fn collect_submission_texts(
         }
     }
 
-    submissions
+    Ok(submissions)
 }
 
 /// Core plagiarism computation, reusable by the export engine.
@@ -110,7 +103,7 @@ pub async fn compute_plagiarism_report(
         return Ok(empty_report());
     }
 
-    let submissions = collect_submission_texts(pool, &submissions_dir);
+    let submissions = collect_submission_texts(pool, &submissions_dir)?;
     let total_submissions = submissions.len();
     if total_submissions < 2 {
         let mut report = empty_report();
@@ -305,8 +298,8 @@ pub fn list_plagiarism_runs(
             })
         })
         .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read plagiarism runs: {}", e))?;
     Ok(runs)
 }
 

@@ -90,8 +90,8 @@ async fn get_rubric_criteria(
             })
         })
         .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read rubric criteria: {}", e))?;
     Ok(criteria)
 }
 
@@ -161,8 +161,8 @@ async fn get_submissions_for_assignment(
             ))
         })
         .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read submissions: {}", e))?;
     Ok(rows)
 }
 
@@ -192,8 +192,8 @@ async fn get_grades_for_submission(
             })
         })
         .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read grades: {}", e))?;
     Ok(grades)
 }
 
@@ -247,10 +247,12 @@ fn teacher_graded_criteria(
             "SELECT criterion_id FROM grades WHERE submission_id = ?1 AND graded_by = 'teacher'",
         )
         .map_err(|e| e.to_string())?;
-    let criteria = stmt
+    let criteria: std::collections::HashSet<String> = stmt
         .query_map(params![submission_id], |row| row.get::<_, String>(0))
         .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read teacher criteria: {}", e))?
+        .into_iter()
         .collect();
     Ok(criteria)
 }
@@ -297,7 +299,7 @@ pub async fn grade_submission(
         .gemini_api_key
         .clone()
         .ok_or_else(|| "Gemini API key not configured. Please add it in Settings.".to_string())?;
-    let client = GeminiClient::new(api_key, Some(settings.gemini_model.clone()));
+    let client = GeminiClient::new(api_key, Some(settings.gemini_model.clone()))?;
 
     let submission_text = get_submission_text(&pool, &submission_id)
         .await?
@@ -416,7 +418,7 @@ pub async fn grade_all_assignment(
     let client = Arc::new(GeminiClient::new(
         api_key,
         Some(settings.gemini_model.clone()),
-    ));
+    )?);
 
     let rubric = get_rubric_criteria(&pool, &assignment_id).await?;
     if rubric.is_empty() {
