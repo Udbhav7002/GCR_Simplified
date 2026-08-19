@@ -47,34 +47,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # macOS: import the Developer ID Application certificate for signing.
-      # Skipped when no certificate secret is configured (unsigned builds).
-      - name: Import Apple Developer certificate
-        if: startsWith(matrix.platform, 'macos') && env.APPLE_CERTIFICATE != ''
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "$APPLE_CERTIFICATE" | base64 --decode > /tmp/apple_dev.p12
-          security create-keychain -p temp temp.keychain
-          security default-keychain -s temp.keychain
-          security unlock-keychain -p temp temp.keychain
-          security import /tmp/apple_dev.p12 -k temp.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k temp temp.keychain
-
+      # NOTE: No signing secrets are configured yet, so this produces unsigned
+      # (ad-hoc signed) installers — fine for a teacher review handoff.
+      # To produce properly signed/notarized builds, set the Apple Developer
+      # secrets (APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+      # APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID) and
+      # TAURI_SIGNING_PRIVATE_KEY, and add them back to the env below.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater artifact signing (required to publish update manifests).
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code signing + notarization (tauri-action uses these when set).
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'GCR Simplified ${{ github.ref_name }}'
