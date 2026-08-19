@@ -183,9 +183,9 @@ export function Onboarding() {
       <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/60">
         <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Local-first & private.</span> Submissions and similarity analysis
-          stay 100% on your machine. Credentials are stored in your OS keychain. AI grading sends submission text to
-          Google Gemini — review before you grade.
+          <span className="font-medium text-foreground">Local-first & private.</span> Submissions and similarity
+          analysis stay 100% on your machine. Credentials are stored in your OS keychain. AI grading sends submission
+          text to Google Gemini — review before you grade.
         </p>
       </div>
     </div>

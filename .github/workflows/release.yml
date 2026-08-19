@@ -48,8 +48,9 @@ jobs:
         run: npm ci
 
       # macOS: import the Developer ID Application certificate for signing.
+      # Skipped when no certificate secret is configured (unsigned builds).
       - name: Import Apple Developer certificate
-        if: startsWith(matrix.platform, 'macos')
+        if: startsWith(matrix.platform, 'macos') && env.APPLE_CERTIFICATE != ''
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
