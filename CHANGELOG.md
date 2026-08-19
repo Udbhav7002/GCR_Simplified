@@ -4,6 +4,25 @@ All notable changes to GCR Simplified are documented in this file. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-08-19
+
+### Added
+- First-run onboarding checklist: guides new users through Google Classroom
+  connection, Gemini API key setup, and course sync, with a Setup Guide entry
+  in the sidebar to revisit anytime.
+
+### Security
+- Gemini client: no more `.expect()` panic on HTTP client init, API key is
+  validated up front, configurable timeout and retry count with exponential
+  backoff + jitter, and API errors are sanitized and mapped to friendly
+  messages instead of leaking raw response bodies.
+- Database reads now surface row-parse errors instead of silently dropping
+  rows via `filter_map(|r| r.ok())`.
+
+### Build
+- Releases build without Apple signing secrets (unsigned installers for
+  teacher review); updater artifacts disabled until signing is configured.
+
 ## [0.1.0] - 2026-08-17
 
 ### Added
