@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Settings, BookOpen } from "lucide-react";
+import { LayoutDashboard, Settings, BookOpen, ListChecks } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const navItems = [
@@ -7,7 +7,10 @@ const navItems = [
   { to: "/courses", icon: BookOpen, label: "Courses" },
 ];
 
-const bottomItems = [{ to: "/settings", icon: Settings, label: "Settings" }];
+const bottomItems = [
+  { to: "/onboarding", icon: ListChecks, label: "Setup Guide" },
+  { to: "/settings", icon: Settings, label: "Settings" },
+];
 
 export function Sidebar() {
   return (

@@ -21,7 +21,9 @@ fn collect_submission_texts(
             .prepare("SELECT file_path, extracted_text FROM extracted_texts")
             .map_err(|e| e.to_string())?;
         let iter = stmt
-            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| format!("Failed to read extraction cache: {}", e))?;

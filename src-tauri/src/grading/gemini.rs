@@ -77,7 +77,6 @@ pub struct GeminiClient {
     client: Client,
     api_key: String,
     model: String,
-    timeout_secs: u64,
     max_retries: u32,
 }
 
@@ -155,7 +154,6 @@ impl GeminiClient {
             client,
             api_key,
             model: model.unwrap_or_else(|| "gemini-2.5-flash".to_string()),
-            timeout_secs,
             max_retries,
         })
     }
@@ -305,9 +303,8 @@ Be fair, consistent, and specific in your justifications."#
             .map(|p| p.text.clone())
             .ok_or("Empty response from Gemini")?;
 
-        let grading_result: GradingResult = serde_json::from_str(&response_text).map_err(|e| {
-            format!("Failed to parse grading JSON: {}", sanitize_error(&e))
-        })?;
+        let grading_result: GradingResult = serde_json::from_str(&response_text)
+            .map_err(|e| format!("Failed to parse grading JSON: {}", sanitize_error(&e)))?;
 
         // Validate scores are within bounds
         for criterion_grade in &grading_result.criteria {
@@ -439,15 +436,45 @@ mod tests {
 
     #[test]
     fn test_map_api_error() {
-        assert_eq!(map_api_error(reqwest::StatusCode::UNAUTHORIZED), "Invalid or missing Gemini API key");
-        assert_eq!(map_api_error(reqwest::StatusCode::TOO_MANY_REQUESTS), "Gemini API rate limit exceeded");
-        assert_eq!(map_api_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR), "Gemini API internal error");
-        assert_eq!(map_api_error(reqwest::StatusCode::BAD_GATEWAY), "Gemini API bad gateway");
-        assert_eq!(map_api_error(reqwest::StatusCode::SERVICE_UNAVAILABLE), "Gemini API temporarily unavailable");
-        assert_eq!(map_api_error(reqwest::StatusCode::GATEWAY_TIMEOUT), "Gemini API gateway timeout");
-        assert_eq!(map_api_error(reqwest::StatusCode::NOT_FOUND), "Gemini model not found");
-        assert_eq!(map_api_error(reqwest::StatusCode::FORBIDDEN), "Gemini API access forbidden");
-        assert_eq!(map_api_error(reqwest::StatusCode::BAD_REQUEST), "Invalid request to Gemini API");
-        assert_eq!(map_api_error(reqwest::StatusCode::from_u16(999).unwrap()), "Gemini API error (999)");
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::UNAUTHORIZED),
+            "Invalid or missing Gemini API key"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::TOO_MANY_REQUESTS),
+            "Gemini API rate limit exceeded"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
+            "Gemini API internal error"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::BAD_GATEWAY),
+            "Gemini API bad gateway"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::SERVICE_UNAVAILABLE),
+            "Gemini API temporarily unavailable"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::GATEWAY_TIMEOUT),
+            "Gemini API gateway timeout"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::NOT_FOUND),
+            "Gemini model not found"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::FORBIDDEN),
+            "Gemini API access forbidden"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::BAD_REQUEST),
+            "Invalid request to Gemini API"
+        );
+        assert_eq!(
+            map_api_error(reqwest::StatusCode::from_u16(999).unwrap()),
+            "Gemini API error (999)"
+        );
     }
 }
