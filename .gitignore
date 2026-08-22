@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Full-codebase dump for sharing with AIs (local only)
+ALL_CODE.md
