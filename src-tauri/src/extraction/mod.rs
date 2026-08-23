@@ -20,9 +20,11 @@ pub fn extract_text_from_file(file_path: &str) -> Result<(String, String), Strin
             match text {
                 Some(t) if !t.trim().is_empty() => Ok((t, "pdf".to_string())),
                 _ => {
-                    // Scanned PDF — try OCR
-                    // For now, return a message since OCR is not yet integrated
-                    Err("Scanned PDF detected. OCR support requires Tesseract. Install Tesseract and restart the app for scanned document support.".to_string())
+                    // Scanned / non-text PDF — mark gracefully as skipped
+                    Ok((
+                        String::new(),
+                        "skipped".to_string(),
+                    ))
                 }
             }
         }
@@ -31,7 +33,7 @@ pub fn extract_text_from_file(file_path: &str) -> Result<(String, String), Strin
             Ok((text, "docx".to_string()))
         }
         "doc" => {
-            Err("Legacy .doc format not supported. Please convert to .docx or .pdf.".to_string())
+            Ok((String::new(), "skipped".to_string()))
         }
         "txt" | "md" | "py" | "java" | "js" | "ts" | "c" | "cpp" | "rs" | "go" | "rb" | "html"
         | "css" | "json" | "xml" | "csv" => {
@@ -40,8 +42,8 @@ pub fn extract_text_from_file(file_path: &str) -> Result<(String, String), Strin
             Ok((text, "plaintext".to_string()))
         }
         "jpg" | "jpeg" | "png" | "tiff" | "tif" | "bmp" | "gif" | "webp" => {
-            // OCR placeholder
-            ocr::ocr_image(file_path).map(|text| (text, "ocr".to_string()))
+            // Images without local OCR engine are gracefully skipped
+            Ok((String::new(), "skipped".to_string()))
         }
         _ => {
             // Try to read as plain text

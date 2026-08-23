@@ -1,9 +1,45 @@
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub type DbPool = Pool<SqliteConnectionManager>;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Class {
+    pub id: String,
+    pub name: String,
+    pub subject: Option<String>,
+    pub student_count: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Student {
+    pub id: String,
+    pub class_id: String,
+    pub roll_number: String,
+    pub name: String,
+    pub email: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Assignment {
+    pub id: String,
+    pub class_id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub question_text: Option<String>,
+    pub model_answer: Option<String>,
+    pub max_score: Option<f64>,
+    pub status: String,
+    pub submission_count: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RubricCriterion {
@@ -25,42 +61,10 @@ pub struct ExtractionResult {
     pub error: Option<String>,
 }
 
-fn table_has_column(conn: &rusqlite::Connection, table: &str, column: &str) -> bool {
-    let mut stmt = match conn.prepare(&format!("PRAGMA table_info({})", table)) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    let cols = stmt
-        .query_map([], |row| row.get::<_, String>(1))
-        .map(|iter| iter.filter_map(|c| c.ok()).collect::<Vec<_>>())
-        .unwrap_or_default();
-    cols.iter().any(|c| c == column)
-}
-
-fn ensure_column(conn: &rusqlite::Connection, table: &str, column: &str, ddl: &str) {
-    if !table_has_column(conn, table, column) {
-        conn.execute(&format!("ALTER TABLE {} ADD COLUMN {}", table, ddl), [])
-            .ok();
-    }
-}
-pub fn init_db(db_path: PathBuf) -> DbPool {
-    // busy_timeout + synchronous=NORMAL so concurrent writers (batch grading,
-    // batch downloads) retry instead of failing with SQLITE_BUSY, while WAL
-    // keeps readers unblocked.
-    let manager = SqliteConnectionManager::file(db_path).with_init(|conn| {
-        conn.pragma_update(None, "busy_timeout", 5000_i64)?;
-        conn.pragma_update(None, "synchronous", "NORMAL")?;
-        Ok(())
-    });
-    let pool = Pool::new(manager).expect("Failed to create DB pool.");
-
-    let conn = pool.get().expect("Failed to get connection from pool");
-
-    conn.execute_batch(
+const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "001_initial_schema",
         "
-        PRAGMA journal_mode = WAL;
-        PRAGMA foreign_keys = ON;
-
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -170,37 +174,106 @@ pub fn init_db(db_path: PathBuf) -> DbPool {
         CREATE INDEX IF NOT EXISTS idx_grades_submission
             ON grades(submission_id);
         ",
-    )
-    .expect("Failed to create tables.");
+    ),
+    (
+        "002_performance_and_extraction_indexes",
+        "
+        CREATE INDEX IF NOT EXISTS idx_extracted_texts_method ON extracted_texts(extraction_method);
+        CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
+        CREATE INDEX IF NOT EXISTS idx_submissions_grading_status ON submissions(grading_status);
+        ",
+    ),
+];
 
-    // Migrations for older databases (new columns added after initial release)
-    ensure_column(&conn, "grades", "justification", "justification TEXT");
-    ensure_column(
-        &conn,
-        "grades",
-        "graded_by",
-        "graded_by TEXT NOT NULL DEFAULT 'ai'",
-    );
-    ensure_column(
-        &conn,
-        "grades",
-        "approved",
-        "approved INTEGER NOT NULL DEFAULT 0",
-    );
-    ensure_column(&conn, "grades", "graded_at", "graded_at TEXT");
-    ensure_column(&conn, "submissions", "ai_feedback", "ai_feedback TEXT");
-    ensure_column(
-        &conn,
-        "submissions",
-        "ai_total_score",
-        "ai_total_score REAL",
-    );
-    ensure_column(
-        &conn,
-        "submissions",
-        "grading_status",
-        "grading_status TEXT NOT NULL DEFAULT 'ungraded'",
-    );
+pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), String> {
+    conn.execute_batch(
+        "PRAGMA journal_mode = WAL;
+         PRAGMA foreign_keys = ON;
+         CREATE TABLE IF NOT EXISTS _schema_versions (
+             version TEXT PRIMARY KEY,
+             applied_at TEXT NOT NULL
+         );",
+    )
+    .map_err(|e| format!("Failed to setup schema versioning: {}", e))?;
+
+    for (version, sql) in MIGRATIONS {
+        let applied: bool = conn
+            .query_row(
+                "SELECT 1 FROM _schema_versions WHERE version = ?1",
+                params![version],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+
+        if !applied {
+            log::info!("Applying schema migration: {}", version);
+            let tx = conn
+                .transaction()
+                .map_err(|e| format!("Failed to begin migration transaction for {}: {}", version, e))?;
+            tx.execute_batch(sql)
+                .map_err(|e| format!("Failed to execute migration {}: {}", version, e))?;
+            let now = chrono::Utc::now().to_rfc3339();
+            tx.execute(
+                "INSERT INTO _schema_versions (version, applied_at) VALUES (?1, ?2)",
+                params![version, now],
+            )
+            .map_err(|e| format!("Failed to record migration {}: {}", version, e))?;
+            tx.commit()
+                .map_err(|e| format!("Failed to commit migration {}: {}", version, e))?;
+        }
+    }
+
+    // Prune stale Google cache entries older than 30 days
+    if let Err(e) = conn.execute(
+        "DELETE FROM google_cache WHERE datetime(fetched_at) < datetime('now', '-30 days')",
+        [],
+    ) {
+        log::warn!("Failed to prune stale google_cache rows: {}", e);
+    }
+
+    Ok(())
+}
+
+pub fn init_db(db_path: PathBuf) -> DbPool {
+    let manager = SqliteConnectionManager::file(db_path).with_init(|conn| {
+        conn.pragma_update(None, "busy_timeout", 5000_i64)?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        Ok(())
+    });
+    let pool = Pool::new(manager).expect("Failed to create DB pool.");
+
+    let mut conn = pool.get().expect("Failed to get connection from pool");
+    run_migrations(&mut conn).expect("Failed to run database migrations");
 
     pool
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_migrations_are_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("migration_test.db");
+
+        let pool = init_db(db_path.clone());
+        {
+            let conn = pool.get().unwrap();
+            let count: i64 = conn
+                .query_row("SELECT count(*) FROM _schema_versions", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(count, MIGRATIONS.len() as i64);
+        }
+
+        // Running init_db again on existing DB should succeed without errors
+        let pool2 = init_db(db_path);
+        {
+            let conn2 = pool2.get().unwrap();
+            let count2: i64 = conn2
+                .query_row("SELECT count(*) FROM _schema_versions", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(count2, MIGRATIONS.len() as i64);
+        }
+    }
 }

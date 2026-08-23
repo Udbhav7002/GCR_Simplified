@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { save } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import {
   getGradebook,
   gradeAllAssignment,
@@ -10,9 +11,10 @@ import {
   exportGradebook,
   createRubricCriterion,
   deleteRubricCriterion,
+  cancelActiveTasks,
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
-import type { GradebookView, Grade, GradebookRow } from "@/lib/types";
+import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,13 +23,10 @@ import {
   ChevronRight,
   RefreshCw,
   Loader2,
-  CheckCircle2,
   AlertTriangle,
   Edit2,
-  Check,
   Shield,
   Brain,
-  Sparkles,
   FileSpreadsheet,
   Plus,
 } from "lucide-react";
@@ -44,6 +43,7 @@ export function Gradebook() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gradingAll, setGradingAll] = useState(false);
+  const [progress, setProgress] = useState<GradingProgressPayload | null>(null);
   const [editingGrade, setEditingGrade] = useState<{ grade: Grade; row: GradebookRow } | null>(null);
   const [overrideScore, setOverrideScore] = useState("");
   const [overrideFeedback, setOverrideFeedback] = useState("");
@@ -60,7 +60,7 @@ export function Gradebook() {
       setError(null);
       const data = await getGradebook(assignmentId);
       setGradebook(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(friendlyError(err));
     } finally {
@@ -71,6 +71,19 @@ export function Gradebook() {
   useEffect(() => {
     fetchGradebook();
   }, [fetchGradebook]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<GradingProgressPayload>("grading-progress", (event) => {
+      setProgress(event.payload);
+    }).then((fn) => {
+      unlisten = fn;
+    }).catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const handleAddCriterion = async () => {
     if (!assignmentId) return;
@@ -97,7 +110,7 @@ export function Gradebook() {
       setNewCriterionMax("10");
       toast("Rubric criterion added", "success");
       await fetchGradebook();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to add criterion: " + friendlyError(err), "error");
     } finally {
@@ -111,7 +124,7 @@ export function Gradebook() {
       await deleteRubricCriterion(id);
       toast(`Removed criterion "${name}"`, "success");
       await fetchGradebook();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to remove criterion: " + friendlyError(err), "error");
     }
@@ -121,6 +134,7 @@ export function Gradebook() {
     if (!assignmentId) return;
     try {
       setGradingAll(true);
+      setProgress(null);
       const result = await gradeAllAssignment(assignmentId);
       if (result.failed > 0) {
         toast(
@@ -131,11 +145,22 @@ export function Gradebook() {
         toast(`AI grading complete for ${result.graded.length} submissions`, "success");
       }
       await fetchGradebook();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast("AI grading failed: " + friendlyError(err), "error");
+      toast("AI grading finished: " + friendlyError(err), "info");
+      await fetchGradebook();
     } finally {
       setGradingAll(false);
+      setProgress(null);
+    }
+  };
+
+  const handleCancelGrading = async () => {
+    try {
+      await cancelActiveTasks();
+      toast("Cancelling batch grading...", "info");
+    } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -146,7 +171,7 @@ export function Gradebook() {
       const count = await approveAllGrades(assignmentId);
       toast(`Approved ${count} AI-suggested grades`, "success");
       await fetchGradebook();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to approve grades: " + friendlyError(err), "error");
     } finally {
@@ -170,7 +195,7 @@ export function Gradebook() {
       setExporting(true);
       const path = await exportGradebook({ assignmentId, courseId, courseWorkId, savePath });
       toast(`Gradebook exported to:\n${path}`, "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to export gradebook: " + friendlyError(err), "error");
     } finally {
@@ -190,7 +215,7 @@ export function Gradebook() {
       setEditingGrade(null);
       await fetchGradebook();
       toast("Grade override saved", "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to save override: " + friendlyError(err), "error");
     }
@@ -211,7 +236,7 @@ export function Gradebook() {
       await approveGrade(gradeId, approved);
       await fetchGradebook();
       toast(approved ? "Grade approved" : "Approval removed", "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       toast("Failed to update approval: " + friendlyError(err), "error");
     }
@@ -291,15 +316,22 @@ export function Gradebook() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button
-            onClick={handleGradeAll}
-            disabled={loading || gradingAll || gradedCount === totalStudents}
-            variant="outline"
-            className="gap-2"
-          >
-            {gradingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-            {gradingAll ? "Grading..." : "Grade All (AI)"}
-          </Button>
+          {gradingAll ? (
+            <Button onClick={handleCancelGrading} variant="destructive" className="gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Cancel Grading
+            </Button>
+          ) : (
+            <Button
+              onClick={handleGradeAll}
+              disabled={loading || gradedCount === totalStudents || gradebook.rubric.length === 0}
+              variant="outline"
+              className="gap-2"
+            >
+              <Brain className="w-4 h-4" />
+              Grade All (AI)
+            </Button>
+          )}
           <Button
             onClick={handleApproveAll}
             disabled={loading || approvingAll || suggestedCount === 0}
@@ -315,6 +347,32 @@ export function Gradebook() {
           </Button>
         </div>
       </div>
+
+      {/* Real-time Grading Progress Banner */}
+      {gradingAll && progress && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span>
+                  Grading submission {progress.current} of {progress.total}:{" "}
+                  <span className="font-semibold text-primary">{progress.student_name}</span> ({progress.status})
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-primary/20 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-primary h-full transition-all duration-300"
+                style={{ width: `${Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -358,62 +416,46 @@ export function Gradebook() {
         <CardContent className="space-y-4">
           {gradebook.rubric.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No rubric criteria defined yet. Add criteria below, then run AI grading.
+              No rubric criteria defined. Add criteria below before running AI grading.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Criterion</TableHead>
-                    <TableHead className="text-right">Max Marks</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gradebook.rubric.map((criterion) => (
-                    <TableRow key={criterion.id}>
-                      <TableCell className="font-medium">{criterion.name}</TableCell>
-                      <TableCell className="text-right font-mono">{criterion.max_marks}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{criterion.description || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteCriterion(criterion.id, criterion.name)}
-                        >
-                          Remove
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {gradebook.rubric.map((criterion) => (
+                <div
+                  key={criterion.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/20"
+                >
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{criterion.name}</p>
+                    <p className="text-xs text-muted-foreground">Max marks: {criterion.max_marks}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteCriterion(criterion.id, criterion.name)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
-          <div className="flex flex-wrap items-end gap-3 pt-2 border-t">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Criterion name</label>
-              <Input
-                className="w-64"
-                placeholder="e.g. Thesis Clarity"
-                value={newCriterionName}
-                onChange={(e) => setNewCriterionName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Max marks</label>
-              <Input
-                className="w-24"
-                type="number"
-                min="1"
-                step="0.5"
-                value={newCriterionMax}
-                onChange={(e) => setNewCriterionMax(e.target.value)}
-              />
-            </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <Input
+              placeholder="Criterion name (e.g. Code Clarity)"
+              value={newCriterionName}
+              onChange={(e) => setNewCriterionName(e.target.value)}
+              className="max-w-xs"
+            />
+            <Input
+              type="number"
+              placeholder="Max marks"
+              value={newCriterionMax}
+              onChange={(e) => setNewCriterionMax(e.target.value)}
+              className="w-28"
+            />
             <Button onClick={handleAddCriterion} disabled={savingCriterion} className="gap-2">
               {savingCriterion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add Criterion
@@ -424,156 +466,155 @@ export function Gradebook() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Student Grades</CardTitle>
+          <CardTitle>Submissions Gradebook</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-48">Student</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  {gradebook.rubric.map((criterion) => (
-                    <TableHead key={criterion.id} className="text-center min-w-[100px]">
-                      <div className="font-medium">{criterion.name}</div>
-                      <div className="text-xs text-muted-foreground">/ {criterion.max_marks}</div>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {gradebook.rows.map((row) => (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>Status</TableHead>
+                {gradebook.rubric.map((c) => (
+                  <TableHead key={c.id} className="text-center">
+                    {c.name} ({c.max_marks})
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">Total Score</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gradebook.rows.map((row) => {
+                const rowTotal = row.grades.reduce((sum, g) => sum + (g.score ?? 0), 0);
+                const maxTotal = gradebook.rubric.reduce((sum, c) => sum + c.max_marks, 0);
+
+                return (
                   <TableRow key={row.submission_id}>
                     <TableCell>
-                      <div className="font-medium">{row.student_name}</div>
-                      <div className="text-sm text-muted-foreground">{row.student_email || "No email"}</div>
+                      <div>
+                        <p className="font-medium text-sm">{row.student_name}</p>
+                        {row.student_email && (
+                          <p className="text-xs text-muted-foreground">{row.student_email}</p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(row.grading_status)}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      {row.ai_total_score !== null ? row.ai_total_score.toFixed(1) : "-"}
-                    </TableCell>
-                    {gradebook.rubric.map((criterion) => {
-                      const grade = row.grades.find((g) => g.criterion_id === criterion.id);
-                      if (!grade) {
-                        return <TableCell className="text-center text-muted-foreground">-</TableCell>;
-                      }
-                      const isApproved = grade.approved;
-                      const isTeacher = grade.graded_by === "teacher";
-                      const displayScore = grade.score !== null ? grade.score.toFixed(1) : "-";
+                    {gradebook.rubric.map((c) => {
+                      const grade = row.grades.find((g) => g.criterion_id === c.id);
                       return (
-                        <TableCell key={criterion.id} className="text-center">
-                          <div
-                            className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
-                              isTeacher
-                                ? "bg-blue-500/10 text-blue-700"
-                                : isApproved
-                                  ? "bg-green-500/10 text-green-700"
-                                  : "bg-amber-500/10 text-amber-700"
-                            }`}
-                          >
-                            {displayScore}
-                            {isTeacher && <Edit2 className="w-3 h-3" />}
-                            {!isTeacher && isApproved && <CheckCircle2 className="w-3 h-3" />}
-                            {!isTeacher && !isApproved && <Sparkles className="w-3 h-3" />}
-                          </div>
-                          {grade.justification && (
-                            <div
-                              className="text-xs text-muted-foreground mt-1 truncate max-w-[100px]"
-                              title={grade.justification}
-                            >
-                              {grade.justification}
+                        <TableCell key={c.id} className="text-center">
+                          {grade && grade.score !== null ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className="font-semibold text-sm">{grade.score}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 ${
+                                  grade.graded_by === "teacher"
+                                    ? "border-blue-500/40 text-blue-600 bg-blue-500/5"
+                                    : grade.approved
+                                      ? "border-green-500/40 text-green-600 bg-green-500/5"
+                                      : "border-amber-500/40 text-amber-600 bg-amber-500/5"
+                                }`}
+                              >
+                                {grade.graded_by === "teacher"
+                                  ? "Teacher"
+                                  : grade.approved
+                                    ? "Approved"
+                                    : "AI"}
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                aria-label={`Edit grade for ${row.student_name} – ${c.name}`}
+                                onClick={() => handleEditGrade(grade, row)}
+                              >
+                                <Edit2 className="w-3 h-3 text-muted-foreground" />
+                              </Button>
                             </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
                       );
                     })}
+                    <TableCell className="text-right font-bold">
+                      {row.grading_status === "graded" ? `${rowTotal.toFixed(1)} / ${maxTotal}` : "—"}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {row.grades.some((g) => g.graded_by === "ai" && !g.approved) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() =>
-                              handleApproveGrade(row.grades.find((g) => g.graded_by === "ai" && !g.approved)!.id, true)
-                            }
-                          >
-                            <Check className="w-3 h-3" /> Approve
-                          </Button>
-                        )}
-                        {row.grades.some((g) => g.graded_by === "ai") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() =>
-                              handleEditGrade(
-                                row.grades.find((g) => g.graded_by === "ai")!,
-                                row
-                              )
-                            }
-                          >
-                            <Edit2 className="w-3 h-3" /> Override
-                          </Button>
-                        )}
-                      </div>
+                      {row.grades.some((g) => !g.approved && g.graded_by === "ai") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            row.grades
+                              .filter((g) => !g.approved)
+                              .forEach((g) => handleApproveGrade(g.id, true));
+                          }}
+                        >
+                          Approve All
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                );
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {editingGrade && (
-        <Dialog open onOpenChange={(open) => !open && setEditingGrade(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Override Grade for {editingGrade.row.student_name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {editingGrade.grade.justification && (
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground mb-1">AI Justification:</p>
-                  <p className="text-sm">{editingGrade.grade.justification}</p>
-                </div>
-              )}
+      {/* Override Dialog */}
+      <Dialog open={Boolean(editingGrade)} onOpenChange={(open) => !open && setEditingGrade(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Grade Override</DialogTitle>
+          </DialogHeader>
+          {editingGrade && (
+            <div className="space-y-4 py-2">
+              <div>
+                <p className="text-sm font-medium">{editingGrade.row.student_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Criterion:{" "}
+                  {gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.name || "Criterion"} (Max:{" "}
+                  {gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.max_marks})
+                </p>
+              </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Teacher Score (max:{" "}
-                  {gradebook.rubric.find((c) => c.id === editingGrade.grade.criterion_id)?.max_marks ?? "N/A"})
-                </label>
+                <label className="text-sm font-medium">Score</label>
                 <Input
                   type="number"
-                  step="0.1"
+                  step="0.5"
                   min="0"
-                  max={gradebook.rubric.find((c) => c.id === editingGrade.grade.criterion_id)?.max_marks ?? 100}
+                  max={gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.max_marks}
                   value={overrideScore}
                   onChange={(e) => setOverrideScore(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Teacher Feedback (optional)</label>
+                <label className="text-sm font-medium">Teacher Feedback</label>
                 <Input
-                  type="text"
-                  placeholder="Enter feedback..."
+                  placeholder="Optional feedback to the student..."
                   value={overrideFeedback}
                   onChange={(e) => setOverrideFeedback(e.target.value)}
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-4">
+              {editingGrade.grade.justification && (
+                <div className="p-3 bg-muted/40 rounded-lg text-xs space-y-1">
+                  <p className="font-semibold text-muted-foreground">Original AI Justification:</p>
+                  <p>{editingGrade.grade.justification}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setEditingGrade(null)}>
                   Cancel
                 </Button>
                 <Button onClick={handleSaveOverrideClick}>Save Override</Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

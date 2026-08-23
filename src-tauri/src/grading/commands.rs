@@ -1,3 +1,4 @@
+use crate::commands::AppCancellationFlag;
 use crate::db::DbPool;
 use crate::grading::gemini::{
     GeminiClient, GradingResult, RubricCriterion as GeminiRubricCriterion,
@@ -5,8 +6,16 @@ use crate::grading::gemini::{
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Semaphore;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GradingProgressPayload {
+    pub current: usize,
+    pub total: usize,
+    pub student_name: String,
+    pub status: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GradeSubmissionResult {
@@ -406,10 +415,12 @@ pub struct GradeAllResult {
 
 #[tauri::command]
 pub async fn grade_all_assignment(
-    _app: AppHandle,
+    app: AppHandle,
     pool: State<'_, DbPool>,
+    cancel_flag: State<'_, AppCancellationFlag>,
     assignment_id: String,
 ) -> Result<GradeAllResult, String> {
+    cancel_flag.0.store(false, std::sync::atomic::Ordering::SeqCst);
     let settings = crate::commands::settings::load_settings(&pool)?;
     let api_key = settings
         .gemini_api_key
@@ -427,6 +438,7 @@ pub async fn grade_all_assignment(
 
     let (_, model_answer) = get_assignment_details(&pool, &assignment_id).await?;
     let submissions = get_submissions_for_assignment(&pool, &assignment_id).await?;
+    let total = submissions.len();
 
     let gemini_rubric: Vec<GeminiRubricCriterion> = rubric
         .iter()
@@ -439,7 +451,9 @@ pub async fn grade_all_assignment(
         })
         .collect();
 
-    let semaphore = Arc::new(Semaphore::new(3));
+    let concurrency = settings.grading_concurrency.clamp(1, 10);
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let progress_counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut handles = Vec::new();
 
     for (submission_id, _student_id, student_name_opt, _email, _, _, _) in submissions {
@@ -450,9 +464,20 @@ pub async fn grade_all_assignment(
         let semaphore = semaphore.clone();
         let submission_id_clone = submission_id.clone();
         let student_name = student_name_opt.unwrap_or_else(|| "Unknown Student".to_string());
+        let cancel = cancel_flag.0.clone();
+        let app_handle = app.clone();
+        let counter = progress_counter.clone();
 
         let handle = tokio::spawn(async move {
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err("Grading cancelled by user".to_string());
+            }
+
             let _permit = semaphore.acquire().await.ok();
+
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err("Grading cancelled by user".to_string());
+            }
 
             let submission_text = match get_submission_text(&pool, &submission_id_clone).await {
                 Ok(Some(text)) if !text.trim().is_empty() => text,
@@ -460,6 +485,16 @@ pub async fn grade_all_assignment(
                     log::warn!(
                         "Skipping submission {}: no extracted text",
                         submission_id_clone
+                    );
+                    let curr = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let _ = app_handle.emit(
+                        "grading-progress",
+                        GradingProgressPayload {
+                            current: curr,
+                            total,
+                            student_name: student_name.clone(),
+                            status: "skipped (no text)".to_string(),
+                        },
                     );
                     return Err(format!("No extracted text for {}", student_name));
                 }
@@ -472,6 +507,16 @@ pub async fn grade_all_assignment(
                 Ok(r) => r,
                 Err(e) => {
                     log::warn!("Grading failed for {}: {}", student_name, e);
+                    let curr = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let _ = app_handle.emit(
+                        "grading-progress",
+                        GradingProgressPayload {
+                            current: curr,
+                            total,
+                            student_name: student_name.clone(),
+                            status: format!("failed: {}", e),
+                        },
+                    );
                     return Err(e);
                 }
             };
@@ -509,6 +554,17 @@ pub async fn grade_all_assignment(
 
             conn_execute_feedback(&pool, &submission_id_clone, &grading_result.feedback)?;
             recompute_submission_total(&pool, &submission_id_clone)?;
+
+            let curr = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            let _ = app_handle.emit(
+                "grading-progress",
+                GradingProgressPayload {
+                    current: curr,
+                    total,
+                    student_name: student_name.clone(),
+                    status: "graded".to_string(),
+                },
+            );
 
             let grades = db_grades
                 .into_iter()
@@ -579,7 +635,30 @@ pub async fn update_grade_override(
     teacher_score: f64,
     teacher_feedback: Option<String>,
 ) -> Result<Grade, String> {
+    if !teacher_score.is_finite() || teacher_score < 0.0 {
+        return Err("Teacher score must be a non-negative finite number".to_string());
+    }
+
     let conn = pool.get().map_err(|e| e.to_string())?;
+
+    // Check bounds against criterion max_marks
+    let (max_marks, criterion_name): (f64, String) = conn
+        .query_row(
+            "SELECT rc.max_marks, rc.name FROM grades g
+             JOIN rubric_criteria rc ON rc.id = g.criterion_id
+             WHERE g.id = ?1",
+            params![&grade_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Criterion lookup failed: {}", e))?;
+
+    if teacher_score > max_marks {
+        return Err(format!(
+            "Score ({:.2}) cannot exceed criterion max marks ({:.2}) for '{}'",
+            teacher_score, max_marks, criterion_name
+        ));
+    }
+
     let now = chrono::Utc::now().to_rfc3339();
 
     conn.execute(

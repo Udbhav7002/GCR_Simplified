@@ -7,7 +7,7 @@ pub mod grading;
 pub mod plagiarism;
 pub mod security;
 
-use crate::commands::{maintenance::*, rubrics::*, settings::*, submissions::*};
+use crate::commands::{maintenance::*, rubrics::*, settings::*, submissions::*, *};
 use crate::export::commands::*;
 use crate::extraction::commands::*;
 use crate::google::{auth::*, classroom::*, drive::*, gmail::*};
@@ -30,6 +30,13 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -51,10 +58,12 @@ pub fn run() {
 
             // Manage DB pool in Tauri State
             app.manage(pool);
+            app.manage(crate::commands::AppCancellationFlag::default());
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            cancel_active_tasks,
             create_rubric_criterion,
             get_rubric_criteria,
             update_rubric_criterion,
@@ -88,7 +97,9 @@ pub fn run() {
             get_gradebook,
             export_gradebook,
             purge_downloaded_submissions,
-            backup_database
+            purge_plagiarism_runs,
+            backup_database,
+            restore_database
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

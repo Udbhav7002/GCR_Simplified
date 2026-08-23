@@ -200,11 +200,13 @@ pub async fn compute_plagiarism_report(
 pub async fn run_plagiarism_check(
     pool: State<'_, DbPool>,
     app: AppHandle,
+    cancel_flag: State<'_, crate::commands::AppCancellationFlag>,
     course_id: String,
     course_work_id: String,
     fingerprint_threshold: Option<f64>,
     semantic_threshold: Option<f64>,
 ) -> Result<PlagiarismReport, String> {
+    cancel_flag.0.store(false, std::sync::atomic::Ordering::SeqCst);
     let settings = crate::commands::settings::load_settings(&pool)?;
     let fp_threshold = fingerprint_threshold.unwrap_or(settings.default_fingerprint_threshold);
     let sem_threshold = semantic_threshold.unwrap_or(settings.default_semantic_threshold);
@@ -216,6 +218,10 @@ pub async fn run_plagiarism_check(
         .await
         .ok();
 
+    if cancel_flag.0.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err("Plagiarism check cancelled by user".to_string());
+    }
+
     let report = compute_plagiarism_report(
         &pool,
         &app_data,
@@ -226,6 +232,10 @@ pub async fn run_plagiarism_check(
         roster,
     )
     .await?;
+
+    if cancel_flag.0.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err("Plagiarism check cancelled by user".to_string());
+    }
 
     save_plagiarism_run(&pool, &report)?;
 
@@ -246,7 +256,15 @@ pub struct PlagiarismRunMeta {
 }
 
 fn save_plagiarism_run(pool: &DbPool, report: &PlagiarismReport) -> Result<(), String> {
-    let report_json = serde_json::to_string(report).map_err(|e| e.to_string())?;
+    // Storage optimization: keep full details for flagged pairs; strip fragment detail for non-flagged pairs.
+    let mut optimized_report = report.clone();
+    for pair in &mut optimized_report.results {
+        if !pair.flagged {
+            pair.matched_fragments.clear();
+        }
+    }
+
+    let report_json = serde_json::to_string(&optimized_report).map_err(|e| e.to_string())?;
     let run_id = uuid::Uuid::new_v4().to_string();
     let conn = pool.get().map_err(|e| e.to_string())?;
     conn.execute(
@@ -321,4 +339,28 @@ pub fn get_plagiarism_run(
         .map_err(|e| format!("Run not found: {}", e))?;
     let report: PlagiarismReport = serde_json::from_str(&report_json).map_err(|e| e.to_string())?;
     Ok(report)
+}
+
+/// Purge old plagiarism runs to free local disk space. If older_than_days is None or <= 0,
+/// purges all runs.
+#[tauri::command]
+pub fn purge_plagiarism_runs(
+    pool: State<'_, DbPool>,
+    older_than_days: Option<i64>,
+) -> Result<usize, String> {
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    let removed = match older_than_days {
+        Some(days) if days > 0 => {
+            let cutoff = format!("-{} days", days);
+            conn.execute(
+                "DELETE FROM plagiarism_runs WHERE datetime(created_at) < datetime('now', ?1)",
+                params![cutoff],
+            )
+            .map_err(|e| e.to_string())?
+        }
+        _ => conn
+            .execute("DELETE FROM plagiarism_runs", [])
+            .map_err(|e| e.to_string())?,
+    };
+    Ok(removed)
 }

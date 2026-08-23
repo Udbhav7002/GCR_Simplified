@@ -1,12 +1,12 @@
 import { Suspense, lazy, useEffect, useState, useRef } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toaster";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useTheme } from "@/lib/useTheme";
+import { ThemeProvider } from "@/lib/useTheme";
 import { Loader2 } from "lucide-react";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -54,7 +54,7 @@ function PageLoader() {
  *  Google account (or explicitly dismiss). The /onboarding route itself is
  *  always accessible from within the app. The redirect happens once per app
  *  launch, so navigating away from onboarding never bounces the user back. */
-function SetupGuard({ children }: { children: React.ReactNode }) {
+export function SetupGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const checkedOnce = useRef(false);
   const [ready, setReady] = useState(false);
@@ -138,6 +138,7 @@ function AppLayout() {
                 />
                 <Route path="/courses/:courseId/assignments/:courseWorkId/missing" element={<MissingSubmissions />} />
                 <Route path="/assignments/:assignmentId/gradebook" element={<Gradebook />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </SetupGuard>
           </Suspense>
@@ -148,19 +149,20 @@ function AppLayout() {
 }
 
 function App() {
-  useTheme();
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ToastProvider>
-          <ErrorBoundary>
-            <BrowserRouter>
-              <AppLayout />
-            </BrowserRouter>
-          </ErrorBoundary>
-        </ToastProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <HashRouter>
+                <AppLayout />
+              </HashRouter>
+            </ErrorBoundary>
+          </ToastProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

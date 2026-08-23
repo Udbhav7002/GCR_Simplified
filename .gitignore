@@ -25,3 +25,14 @@ dist-ssr
 
 # Full-codebase dump for sharing with AIs (local only)
 ALL_CODE.md
+
+# Environment variables
+.env
+.env.*
+
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

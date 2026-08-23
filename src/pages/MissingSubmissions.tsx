@@ -34,7 +34,7 @@ export function MissingSubmissions() {
       setMissingStudents(missing);
       setTotalStudents(missing.length + submissions.filter((s) => s.state === "TURNED_IN").length);
       setSubmittedCount(submissions.filter((s) => s.state === "TURNED_IN").length);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(friendlyError(err));
     } finally {

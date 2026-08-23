@@ -24,7 +24,7 @@ export function Courses() {
       setError(null);
       const data = await listGoogleCourses(force);
       setCourses(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(friendlyError(err));
     } finally {
@@ -135,6 +135,7 @@ export function Courses() {
                     size="icon"
                     variant="outline"
                     title="Open in Classroom"
+                    aria-label={`Open ${course.name} in Google Classroom`}
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Button>

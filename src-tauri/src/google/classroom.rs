@@ -387,9 +387,12 @@ pub async fn mirror_submissions_to_db(
         .unwrap_or_else(|| course_work_id.to_string());
 
     let now = chrono::Utc::now().to_rfc3339();
-    let conn = pool.get().map_err(|e| e.to_string())?;
+    let mut conn = pool.get().map_err(|e| e.to_string())?;
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
 
-    conn.execute(
+    tx.execute(
         "INSERT INTO assignments (id, class_id, title, description, question_text, model_answer, max_score, status, created_at, updated_at)
          VALUES (?1, ?2, ?3, NULL, NULL, NULL, NULL, 'Active', ?4, ?4)
          ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at",
@@ -402,7 +405,7 @@ pub async fn mirror_submissions_to_db(
             .student_name
             .clone()
             .unwrap_or_else(|| "Unknown Student".to_string());
-        conn.execute(
+        tx.execute(
             "INSERT INTO students (id, class_id, roll_number, name, email, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email",
@@ -417,7 +420,7 @@ pub async fn mirror_submissions_to_db(
         )
         .map_err(|e| e.to_string())?;
 
-        conn.execute(
+        tx.execute(
             "INSERT INTO submissions (id, assignment_id, student_id, file_path, status, submitted_at, created_at)
              VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6)
              ON CONFLICT(assignment_id, student_id) DO UPDATE SET status = excluded.status, submitted_at = excluded.submitted_at",
@@ -425,6 +428,9 @@ pub async fn mirror_submissions_to_db(
         )
         .map_err(|e| e.to_string())?;
     }
+
+    tx.commit()
+        .map_err(|e| format!("Failed to commit mirrored submissions: {}", e))?;
 
     Ok(())
 }

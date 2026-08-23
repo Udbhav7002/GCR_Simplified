@@ -1,18 +1,13 @@
 import { useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/courses": "Google Classroom",
   "/settings": "Settings",
+  "/onboarding": "Getting Started",
 };
 
-interface HeaderProps {
-  onNewAssignment?: () => void;
-}
-
-export function Header({ onNewAssignment }: HeaderProps) {
+export function Header() {
   const location = useLocation();
   const pathBase = "/" + (location.pathname.split("/")[1] || "");
   const title = pageTitles[pathBase] || "GCR Simplified";
@@ -23,16 +18,11 @@ export function Header({ onNewAssignment }: HeaderProps) {
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           {location.pathname === "/" && "Overview of your synced courses and assignments"}
-          {pathBase === "/courses" && "Manage Google Classroom sync"}
-          {pathBase === "/settings" && "Configure app preferences and API keys"}
+          {pathBase === "/courses" && "Manage Google Classroom courses and assignments"}
+          {pathBase === "/settings" && "Configure app preferences, thresholds, and maintenance"}
+          {pathBase === "/onboarding" && "Setup checklist to connect your classroom"}
         </p>
       </div>
-      {location.pathname === "/" && onNewAssignment && (
-        <Button onClick={onNewAssignment} className="gap-2" size="sm">
-          <Plus className="w-4 h-4" />
-          New Course
-        </Button>
-      )}
     </header>
   );
 }

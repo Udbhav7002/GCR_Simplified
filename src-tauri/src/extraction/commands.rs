@@ -67,6 +67,14 @@ pub async fn extract_text(
     }
 }
 
+#[derive(Clone, serde::Serialize)]
+struct ExtractionProgress {
+    completed: usize,
+    total: usize,
+    current: String,
+    success: bool,
+}
+
 /// Batch extract text from all downloaded files for an assignment, using
 /// bounded concurrency and emitting `extraction-progress` events as files
 /// complete (mirrors the download pipeline).
@@ -74,9 +82,12 @@ pub async fn extract_text(
 pub async fn extract_all_submissions(
     pool: State<'_, DbPool>,
     app: AppHandle,
+    cancel_flag: State<'_, crate::commands::AppCancellationFlag>,
     course_id: String,
     course_work_id: String,
 ) -> Result<Vec<ExtractionResult>, String> {
+    cancel_flag.0.store(false, std::sync::atomic::Ordering::SeqCst);
+    let settings = crate::commands::settings::load_settings(&pool)?;
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let submissions_dir = app_data
         .join("submissions")
@@ -100,17 +111,17 @@ pub async fn extract_all_submissions(
         let entries = std::fs::read_dir(&submissions_dir)
             .map_err(|e| format!("Failed to read submissions dir: {}", e))?;
 
-        for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let student_dir = entry.path();
+        for student_entry in entries.flatten() {
+            let student_dir = student_entry.path();
             if !student_dir.is_dir() {
                 continue;
             }
-            let files = std::fs::read_dir(&student_dir)
-                .map_err(|e| format!("Failed to read student dir: {}", e))?;
+            let files = match std::fs::read_dir(&student_dir) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
 
-            for file_entry in files {
-                let file_entry = file_entry.map_err(|e| e.to_string())?;
+            for file_entry in files.flatten() {
                 let file_path = file_entry.path();
                 if !file_path.is_file() {
                     continue;
@@ -125,13 +136,18 @@ pub async fn extract_all_submissions(
                     )
                     .ok();
                 if let Some((text, method, count)) = cached {
+                    let is_skipped = method == "skipped";
                     cached_results.push(ExtractionResult {
                         file_path: file_path_str.clone(),
                         extracted_text: text,
                         extraction_method: method,
                         char_count: count,
-                        success: true,
-                        error: None,
+                        success: !is_skipped,
+                        error: if is_skipped {
+                            Some("Scanned or non-extractable file skipped".to_string())
+                        } else {
+                            None
+                        },
                     });
                     continue;
                 }
@@ -149,7 +165,7 @@ pub async fn extract_all_submissions(
     }
 
     let total = work_list.len();
-    let max_concurrency = 4usize.min(total.max(1));
+    let max_concurrency = settings.extraction_concurrency.clamp(1, 16).min(total.max(1));
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrency));
     let completed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut handles: Vec<tokio::task::JoinHandle<ExtractionResult>> = Vec::new();
@@ -161,9 +177,32 @@ pub async fn extract_all_submissions(
         let app = app.clone();
         let course_work_id = course_work_id.clone();
         let label = work.label.clone();
+        let cancel = cancel_flag.0.clone();
 
         let handle = tokio::spawn(async move {
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                return ExtractionResult {
+                    file_path: work.file_path,
+                    extracted_text: String::new(),
+                    extraction_method: "cancelled".to_string(),
+                    char_count: 0,
+                    success: false,
+                    error: Some("Extraction cancelled by user".to_string()),
+                };
+            }
+
             let _permit = semaphore.acquire().await;
+
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                return ExtractionResult {
+                    file_path: work.file_path,
+                    extracted_text: String::new(),
+                    extraction_method: "cancelled".to_string(),
+                    char_count: 0,
+                    success: false,
+                    error: Some("Extraction cancelled by user".to_string()),
+                };
+            }
 
             let path_for_extraction = work.file_path.clone();
             let extraction = tokio::task::spawn_blocking(move || {
@@ -176,6 +215,7 @@ pub async fn extract_all_submissions(
                 Ok(Ok((text, method))) => {
                     let char_count = text.len() as i64;
                     let now = chrono::Utc::now().to_rfc3339();
+                    let is_skipped = method == "skipped";
 
                     let cache_and_mirror = (|| -> Result<(), String> {
                         let conn = pool.get().map_err(|e| e.to_string())?;
@@ -185,22 +225,21 @@ pub async fn extract_all_submissions(
                         )
                         .map_err(|e| e.to_string())?;
 
-                        // Mirror into the local submissions row (assignment_id =
-                        // coursework id, student_id = parent directory name).
+                        // Mirror into the local submissions row
                         let normalized_path = work.file_path.replace('\\', "/");
                         let segments: Vec<&str> = normalized_path.split('/').collect();
                         if let Some(student_id) =
                             segments.len().checked_sub(2).and_then(|i| segments.get(i))
                         {
+                            let sub_status = if is_skipped { "skipped" } else { "extracted" };
                             let _ = conn.execute(
-                                "UPDATE submissions SET extracted_text = ?1, status = 'extracted' WHERE assignment_id = ?2 AND student_id = ?3",
-                                params![text.clone(), &course_work_id, student_id],
+                                "UPDATE submissions SET extracted_text = ?1, status = ?2 WHERE assignment_id = ?3 AND student_id = ?4",
+                                params![text.clone(), sub_status, &course_work_id, student_id],
                             );
                         }
                         Ok(())
                     })();
 
-                    // Extraction succeeded regardless of cache/mirror hiccups.
                     if let Err(e) = &cache_and_mirror {
                         log::warn!("Failed to cache extraction: {}", e);
                     }
@@ -210,8 +249,12 @@ pub async fn extract_all_submissions(
                         extracted_text: text,
                         extraction_method: method,
                         char_count,
-                        success: true,
-                        error: None,
+                        success: !is_skipped,
+                        error: if is_skipped {
+                            Some("Scanned or non-extractable file skipped".to_string())
+                        } else {
+                            None
+                        },
                     }
                 }
                 Ok(Err(e)) | Err(e) => ExtractionResult {
@@ -225,15 +268,13 @@ pub async fn extract_all_submissions(
             };
 
             let done = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            app.emit(
-                "extraction-progress",
-                serde_json::json!({
-                    "completed": done,
-                    "total": total,
-                    "current": label,
-                }),
-            )
-            .ok();
+            let progress = ExtractionProgress {
+                completed: done,
+                total,
+                current: label,
+                success: result.success,
+            };
+            app.emit("extraction-progress", progress).ok();
 
             result
         });

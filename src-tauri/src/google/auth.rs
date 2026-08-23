@@ -115,11 +115,14 @@ pub async fn start_google_login(
     app: AppHandle,
     pool: State<'_, DbPool>,
     client_id: String,
-    client_secret: String,
 ) -> Result<GoogleAuthStatus, String> {
-    // Store client credentials (ID is public; secret goes to the OS keychain)
+    let client_id = client_id.trim().to_string();
+    if client_id.is_empty() {
+        return Err("Google Client ID cannot be empty.".to_string());
+    }
+
+    // Store client credentials (ID is public)
     save_setting(&pool, "google_client_id", &client_id)?;
-    security::save_secret(&pool, "google_client_secret", &client_secret)?;
 
     // Generate PKCE
     let (code_verifier, code_challenge) = generate_pkce();
@@ -152,14 +155,13 @@ pub async fn start_google_login(
         .map_err(|e| format!("Join error: {}", e))??;
 
     // Note: the cancel flag remains in app state; the next login replaces it.
-    // Exchange code for tokens
+    // Exchange code for tokens (PKCE does not require client_secret)
     let client = reqwest::Client::new();
     let resp = client
         .post("https://oauth2.googleapis.com/token")
         .form(&[
             ("code", auth_code.as_str()),
             ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
             ("code_verifier", code_verifier.as_str()),
             ("grant_type", "authorization_code"),
             ("redirect_uri", redirect_uri.as_str()),

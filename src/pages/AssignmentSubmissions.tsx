@@ -6,6 +6,7 @@ import {
   downloadSubmissionFile,
   downloadAllSubmissions,
   extractAllSubmissions,
+  cancelActiveTasks,
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GoogleSubmission, GoogleAttachment, ExtractionResult, DownloadProgress } from "@/lib/types";
@@ -16,8 +17,6 @@ import {
   ChevronRight,
   Download,
   RefreshCw,
-  AlertCircle,
-  CheckCircle2,
   FileArchive,
   FileText,
   Eye,
@@ -77,7 +76,7 @@ export function AssignmentSubmissions() {
         setError(null);
         const data = await listGoogleSubmissions(courseId, courseWorkId, force);
         setSubmissions(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
         setError(friendlyError(err));
       } finally {
@@ -91,10 +90,6 @@ export function AssignmentSubmissions() {
     fetchSubmissions(false);
   }, [fetchSubmissions]);
 
-  // Match extracted text to students by exact student-id path segment. The
-  // backend stores files under submissions/{course}/{courseWork}/{userId}/...
-  // so the segment before the filename IS the Google user ID. Substring
-  // matching is unsafe ("12" would match "123456...").
   const extractionByStudent = useMemo(() => {
     const map: Record<string, ExtractionResult> = {};
     for (const result of Object.values(extractionResults)) {
@@ -151,9 +146,9 @@ export function AssignmentSubmissions() {
       } else if (succeeded > 0) {
         toast(`Downloaded ${succeeded} files successfully`, "success");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast("Batch download failed: " + friendlyError(err), "error");
+      toast("Batch download finished: " + friendlyError(err), "info");
     } finally {
       setDownloadingAll(false);
       setDownloadProgress(null);
@@ -171,25 +166,34 @@ export function AssignmentSubmissions() {
         resultMap[r.file_path] = r;
       }
       setExtractionResults(resultMap);
-      const failed = results.filter((r) => !r.success).length;
-      if (failed > 0 && results.length > failed) {
-        toast(
-          `Text extraction finished: ${results.length - failed} ok, ${failed} skipped (e.g. scanned PDFs)`,
-          "error"
-        );
-      } else if (failed > 0) {
-        toast(`No text could be extracted from ${failed} file(s)`, "error");
+      const skippedCount = results.filter((r) => r.extraction_method === "skipped").length;
+      const failedCount = results.filter((r) => !r.success && r.extraction_method !== "skipped").length;
+      const okCount = results.filter((r) => r.success).length;
+
+      if (skippedCount > 0) {
+        toast(`Extracted ${okCount} file(s) (${skippedCount} non-text/scanned skipped)`, "success");
+      } else if (failedCount > 0) {
+        toast(`Extracted ${okCount} file(s), ${failedCount} failed`, "error");
       } else if (results.length > 0) {
         toast(`Extracted text from ${results.length} file(s)`, "success");
       } else {
         toast("No new files to extract", "success");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Extraction error:", err);
-      toast("Failed to extract text: " + friendlyError(err), "error");
+      toast("Extraction finished: " + friendlyError(err), "info");
     } finally {
       setExtractingAll(false);
       setExtractionProgress(null);
+    }
+  };
+
+  const handleCancelTask = async () => {
+    try {
+      await cancelActiveTasks();
+      toast("Cancelling active background task...", "info");
+    } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -201,7 +205,7 @@ export function AssignmentSubmissions() {
     });
   };
 
-  const getStatusBadgeVariant = (state: string) => {
+  const getStatusBadgeVariant = (state: string): "default" | "secondary" | "outline" | "destructive" => {
     switch (state) {
       case "TURNED_IN":
         return "default";
@@ -249,22 +253,23 @@ export function AssignmentSubmissions() {
           <CardContent className="pt-6 flex flex-col items-center justify-center text-center space-y-4">
             <h3 className="text-lg font-medium text-destructive">Error Loading Submissions</h3>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <div className="flex gap-2">
-              <Button render={<Link to={`/courses/${courseId}`} />} variant="outline">
-                Back to Course
-              </Button>
-              <Button onClick={() => fetchSubmissions(false)} variant="default">
-                Retry
-              </Button>
-            </div>
+            <Button onClick={() => fetchSubmissions(true)} variant="outline">
+              Retry
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const total = submissions.length;
+  const turnedIn = submissions.filter((s) => s.state === "TURNED_IN").length;
+  const late = submissions.filter((s) => s.late).length;
+  const graded = submissions.filter((s) => s.assigned_grade !== undefined).length;
+  const assignmentId = courseWorkId || "";
+
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button render={<Link to="/courses" />} variant="ghost" size="sm" className="text-muted-foreground">
@@ -277,7 +282,7 @@ export function AssignmentSubmissions() {
             size="sm"
             className="text-muted-foreground"
           >
-            Details
+            Course
           </Button>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
           <h1 className="text-2xl font-semibold tracking-tight">Submissions</h1>
@@ -287,18 +292,31 @@ export function AssignmentSubmissions() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Sync
           </Button>
-          <Button onClick={handleExtractAll} disabled={extractingAll || loading} variant="outline" className="gap-2">
-            {extractingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {extractingAll ? "Extracting..." : "Extract All Text"}
-          </Button>
-          <Button
-            onClick={handleDownloadAll}
-            disabled={loading || submissions.length === 0 || downloadingAll}
-            className="gap-2"
-          >
-            {downloadingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
-            {downloadingAll ? "Downloading..." : "Download All"}
-          </Button>
+
+          {downloadingAll ? (
+            <Button onClick={handleCancelTask} variant="destructive" className="gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Cancel Download
+            </Button>
+          ) : (
+            <Button onClick={handleDownloadAll} disabled={loading || turnedIn === 0} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Download All
+            </Button>
+          )}
+
+          {extractingAll ? (
+            <Button onClick={handleCancelTask} variant="destructive" className="gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Cancel Extract
+            </Button>
+          ) : (
+            <Button onClick={handleExtractAll} disabled={loading || turnedIn === 0} variant="outline" className="gap-2">
+              <FileText className="w-4 h-4" />
+              Extract All
+            </Button>
+          )}
+
           <Button
             render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}/plagiarism`} />}
             variant="outline"
@@ -307,68 +325,96 @@ export function AssignmentSubmissions() {
             <Shield className="w-4 h-4" />
             Check Plagiarism
           </Button>
+
           <Button
-            render={
-              <Link to={`/assignments/${courseWorkId}/gradebook?courseId=${courseId}&courseWorkId=${courseWorkId}`} />
-            }
-            variant="outline"
+            render={<Link to={`/assignments/${assignmentId}/gradebook?courseId=${courseId}&courseWorkId=${courseWorkId}`} />}
             className="gap-2"
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <FileText className="w-4 h-4" />
             Gradebook
           </Button>
+
           <Button
             render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}/missing`} />}
-            variant="outline"
-            className="gap-2"
+            variant="ghost"
+            className="gap-2 text-muted-foreground"
           >
             <Users className="w-4 h-4" />
-            View Missing
+            Missing
           </Button>
         </div>
       </div>
 
-      {downloadProgress && downloadProgress.total > 0 && (
-        <Card className="border-blue-500/30">
-          <CardContent className="pt-6 space-y-2">
+      {downloadingAll && downloadProgress && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                Downloading {downloadProgress.completed}/{downloadProgress.total} files
-              </span>
-              <span className="text-muted-foreground truncate max-w-[400px]" title={downloadProgress.current}>
-                {downloadProgress.current}
+              <div className="flex items-center gap-2 font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span>Downloading {downloadProgress.completed} of {downloadProgress.total}: {downloadProgress.current}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {Math.round((downloadProgress.completed / Math.max(downloadProgress.total, 1)) * 100)}%
               </span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2.5">
+            <div className="w-full bg-primary/20 h-2 rounded-full overflow-hidden">
               <div
-                className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${Math.round((downloadProgress.completed / downloadProgress.total) * 100)}%` }}
+                className="bg-primary h-full transition-all duration-300"
+                style={{ width: `${Math.round((downloadProgress.completed / Math.max(downloadProgress.total, 1)) * 100)}%` }}
               />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {extractionProgress && extractionProgress.total > 0 && (
-        <Card className="border-chart-3/30">
-          <CardContent className="pt-6 space-y-2">
+      {extractingAll && extractionProgress && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                Extracting {extractionProgress.completed}/{extractionProgress.total} files
-              </span>
-              <span className="text-muted-foreground truncate max-w-[400px]" title={extractionProgress.current}>
-                {extractionProgress.current}
+              <div className="flex items-center gap-2 font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span>Extracting text {extractionProgress.completed} of {extractionProgress.total}: {extractionProgress.current}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {Math.round((extractionProgress.completed / Math.max(extractionProgress.total, 1)) * 100)}%
               </span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2.5">
+            <div className="w-full bg-primary/20 h-2 rounded-full overflow-hidden">
               <div
-                className="bg-chart-3 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${Math.round((extractionProgress.completed / extractionProgress.total) * 100)}%` }}
+                className="bg-primary h-full transition-all duration-300"
+                style={{ width: `${Math.round((extractionProgress.completed / Math.max(extractionProgress.total, 1)) * 100)}%` }}
               />
             </div>
           </CardContent>
         </Card>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{total}</div>
+            <p className="text-xs text-muted-foreground">Total Students</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{turnedIn}</div>
+            <p className="text-xs text-muted-foreground">Turned In</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-amber-600">{late}</div>
+            <p className="text-xs text-muted-foreground">Late Submissions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">{graded}</div>
+            <p className="text-xs text-muted-foreground">Graded</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <Table>
@@ -405,7 +451,7 @@ export function AssignmentSubmissions() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={getStatusBadgeVariant(sub.state) as any}
+                        variant={getStatusBadgeVariant(sub.state)}
                         className={getStatusColorClass(sub.state)}
                       >
                         {getStatusLabel(sub.state)}
@@ -418,6 +464,13 @@ export function AssignmentSubmissions() {
                     {(() => {
                       const extracted = extractionByStudent[sub.user_id];
                       if (extracted) {
+                        if (extracted.extraction_method === "skipped") {
+                          return (
+                            <Badge variant="outline" className="border-amber-500/30 text-amber-600 bg-amber-500/5">
+                              Scanned – skipped
+                            </Badge>
+                          );
+                        }
                         if (extracted.success) {
                           return (
                             <div className="flex items-center gap-2">
@@ -428,15 +481,15 @@ export function AssignmentSubmissions() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
+                                aria-label={`View extracted text for ${sub.student_name || "student"}`}
                                 onClick={() => handleViewText(sub.student_name || "Unknown Student", extracted)}
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
                             </div>
                           );
-                        } else {
-                          return <Badge variant="destructive">Failed</Badge>;
                         }
+                        return <Badge variant="destructive">Failed</Badge>;
                       }
                       return <span className="text-sm text-muted-foreground">Not extracted</span>;
                     })()}
@@ -449,35 +502,33 @@ export function AssignmentSubmissions() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex flex-col gap-2 items-end">
+                    <div className="flex items-center justify-end gap-2">
                       {sub.attachments.map((att, idx) => {
+                        const downloadKey = `${sub.id}-${att.drive_file_id}`;
+                        const status = downloadingItems[downloadKey];
+
                         if (!att.drive_file_id) return null;
-                        const key = `${sub.id}-${att.drive_file_id}`;
-                        const status = downloadingItems[key];
 
                         return (
-                          <div key={att.drive_file_id ?? idx} className="flex items-center gap-2">
-                            <span className="text-xs truncate max-w-[150px]" title={att.drive_file_title}>
-                              {att.drive_file_title}
+                          <Button
+                            key={idx}
+                            variant="outline"
+                            size="sm"
+                            disabled={status === "downloading"}
+                            onClick={() => handleDownload(sub, att)}
+                            className="gap-1.5"
+                          >
+                            {status === "downloading" ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : status === "success" ? (
+                              <FileArchive className="w-3.5 h-3.5 text-green-600" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                            <span className="max-w-[120px] truncate text-xs">
+                              {att.drive_file_title || "Download"}
                             </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 w-7 p-0"
-                              onClick={() => handleDownload(sub, att)}
-                              disabled={status === "downloading"}
-                            >
-                              {status === "downloading" ? (
-                                <RefreshCw className="w-3 h-3 animate-spin" />
-                              ) : status === "success" ? (
-                                <CheckCircle2 className="w-3 h-3 text-green-500" />
-                              ) : status === "error" ? (
-                                <AlertCircle className="w-3 h-3 text-red-500" />
-                              ) : (
-                                <Download className="w-3 h-3" />
-                              )}
-                            </Button>
-                          </div>
+                          </Button>
                         );
                       })}
                     </div>
@@ -489,30 +540,23 @@ export function AssignmentSubmissions() {
         </Table>
       </Card>
 
+      {/* Extracted Text Modal */}
       {viewingText && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setViewingText(null)}
-        >
-          <div
-            className="bg-card rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] m-4 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">{viewingText.studentName} — Extracted Text</h3>
-                <p className="text-xs text-muted-foreground">Method: {viewingText.method}</p>
+                <h3 className="text-lg font-semibold">{viewingText.studentName}</h3>
+                <p className="text-xs text-muted-foreground">Extracted via {viewingText.method}</p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setViewingText(null)}>
-                ✕
+                Close
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-foreground">
-                {viewingText.text}
-              </pre>
+            <div className="p-6 overflow-y-auto flex-1 font-mono text-sm whitespace-pre-wrap bg-muted/20">
+              {viewingText.text || "No text content found."}
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

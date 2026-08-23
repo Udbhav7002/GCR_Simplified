@@ -6,8 +6,6 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Semaphore;
 
-const MAX_CONCURRENT_DOWNLOADS: usize = 4;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DownloadResult {
     pub file_id: String,
@@ -173,9 +171,12 @@ pub async fn download_submission_file(
 pub async fn download_all_submissions(
     pool: State<'_, DbPool>,
     app: AppHandle,
+    cancel_flag: State<'_, crate::commands::AppCancellationFlag>,
     course_id: String,
     course_work_id: String,
 ) -> Result<Vec<DownloadResult>, String> {
+    cancel_flag.0.store(false, Ordering::SeqCst);
+    let settings = crate::commands::settings::load_settings(&pool)?;
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
 
     let submissions =
@@ -210,7 +211,8 @@ pub async fn download_all_submissions(
         return Ok(Vec::new());
     }
 
-    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_DOWNLOADS));
+    let concurrency = settings.download_concurrency.clamp(1, 16);
+    let semaphore = Arc::new(Semaphore::new(concurrency));
     let completed = Arc::new(AtomicUsize::new(0));
     let mut handles: Vec<tokio::task::JoinHandle<Result<DownloadResult, String>>> = Vec::new();
 
@@ -222,9 +224,30 @@ pub async fn download_all_submissions(
         let app = app.clone();
         let course_id = course_id.clone();
         let course_work_id = course_work_id.clone();
+        let cancel = cancel_flag.0.clone();
 
         let handle = tokio::spawn(async move {
+            if cancel.load(Ordering::SeqCst) {
+                return Ok(DownloadResult {
+                    file_id: work.file_id,
+                    file_name: work.file_name,
+                    local_path: String::new(),
+                    success: false,
+                    error: Some("Download cancelled by user".to_string()),
+                });
+            }
+
             let _permit = semaphore.acquire().await.map_err(|e| e.to_string())?;
+
+            if cancel.load(Ordering::SeqCst) {
+                return Ok(DownloadResult {
+                    file_id: work.file_id,
+                    file_name: work.file_name,
+                    local_path: String::new(),
+                    success: false,
+                    error: Some("Download cancelled by user".to_string()),
+                });
+            }
 
             let result = download_file_impl(
                 &pool,

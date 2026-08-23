@@ -65,10 +65,16 @@ export async function deleteRubricCriterion(id: string): Promise<void> {
   return invoke<void>("delete_rubric_criterion", { id });
 }
 
+// ── Cancellation ──
+
+export async function cancelActiveTasks(): Promise<void> {
+  return invoke<void>("cancel_active_tasks");
+}
+
 // ── Google Auth ──
 
-export async function startGoogleLogin(clientId: string, clientSecret: string): Promise<GoogleAuthStatus> {
-  return invoke<GoogleAuthStatus>("start_google_login", { clientId, clientSecret });
+export async function startGoogleLogin(clientId: string): Promise<GoogleAuthStatus> {
+  return invoke<GoogleAuthStatus>("start_google_login", { clientId });
 }
 
 export async function cancelGoogleLogin(): Promise<void> {
@@ -189,13 +195,7 @@ export async function getSettings(): Promise<AppSettings> {
   return invoke<AppSettings>("get_settings");
 }
 
-export async function saveSettings(params: {
-  gemini_api_key?: string;
-  gemini_model?: string;
-  default_fingerprint_threshold?: number;
-  default_semantic_threshold?: number;
-  theme?: string;
-}): Promise<void> {
+export async function saveSettings(params: Partial<AppSettings>): Promise<void> {
   return invoke<void>("save_settings", params);
 }
 
@@ -257,6 +257,14 @@ export async function purgeDownloadedSubmissions(): Promise<number> {
   return invoke<number>("purge_downloaded_submissions");
 }
 
+export async function purgePlagiarismRuns(olderThanDays?: number): Promise<number> {
+  return invoke<number>("purge_plagiarism_runs", { olderThanDays: olderThanDays ?? null });
+}
+
 export async function backupDatabase(destPath: string): Promise<string> {
   return invoke<string>("backup_database", { destPath });
+}
+
+export async function restoreDatabase(sourcePath: string): Promise<string> {
+  return invoke<string>("restore_database", { sourcePath });
 }

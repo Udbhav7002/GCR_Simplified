@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { runPlagiarismCheck, listPlagiarismRuns, getPlagiarismRun, getSettings } from "@/lib/ipc";
+import {
+  runPlagiarismCheck,
+  listPlagiarismRuns,
+  getPlagiarismRun,
+  getSettings,
+  cancelActiveTasks,
+} from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { PlagiarismReport, PlagiarismRunMeta, PairwiseResult } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,12 +148,21 @@ export function PlagiarismReportPage() {
       toast(`Analysis complete: ${data.flagged_pairs} flagged pair(s)`, "success");
       const history = await listPlagiarismRuns(courseId, courseWorkId);
       setRuns(history);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(friendlyError(err));
     } finally {
       setRunning(false);
       setLoading(false);
+    }
+  };
+
+  const handleCancelCheck = async () => {
+    try {
+      await cancelActiveTasks();
+      toast("Cancelling plagiarism check...", "info");
+    } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -159,7 +174,7 @@ export function PlagiarismReportPage() {
       const data = await getPlagiarismRun(runId);
       setReport(data);
       setViewingRun(runId);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError(friendlyError(err));
     } finally {
@@ -287,10 +302,17 @@ export function PlagiarismReportPage() {
               </Select>
             </div>
           )}
-          <Button onClick={handleRun} disabled={running || loading} variant="outline" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${running ? "animate-spin" : ""}`} />
-            {running ? "Running..." : "Run New Check"}
-          </Button>
+          {running ? (
+            <Button onClick={handleCancelCheck} variant="destructive" className="gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Cancel Check
+            </Button>
+          ) : (
+            <Button onClick={handleRun} disabled={loading} variant="outline" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Run New Check
+            </Button>
+          )}
         </div>
       </div>
 
@@ -426,6 +448,7 @@ export function PlagiarismReportPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                aria-label={isExpanded ? "Collapse matched fragments" : "Expand matched fragments"}
                                 onClick={() => toggleRow(resultId)}
                                 disabled={result.matched_fragments.length === 0}
                               >
@@ -528,6 +551,7 @@ export function PlagiarismReportPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            aria-label={isExpanded ? "Collapse matched fragments" : "Expand matched fragments"}
                             onClick={() => toggleRow(resultId)}
                             disabled={result.matched_fragments.length === 0}
                           >

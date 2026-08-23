@@ -168,17 +168,33 @@ pub async fn fetch_collection(
             hash_token(page_token.as_deref().unwrap_or("__first__"))
         );
 
-        let mut req = client.get(&url).bearer_auth(token);
-        if !force {
-            if let Some((Some(etag), _, _)) = get_cached_page(pool, &key)? {
-                req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+        let mut retry_count = 0;
+        let resp = loop {
+            let mut req = client.get(&url).bearer_auth(token);
+            if !force {
+                if let Some((Some(etag), _, _)) = get_cached_page(pool, &key)? {
+                    req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+                }
             }
-        }
 
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            let response = req.send().await.map_err(|e| format!("Request failed: {}", e))?;
+            let status = response.status();
+
+            if (status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()) && retry_count < 3 {
+                retry_count += 1;
+                let retry_after_secs = response
+                    .headers()
+                    .get(reqwest::header::RETRY_AFTER)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(1u64 << retry_count); // 2s, 4s, 8s exponential backoff
+                
+                tokio::time::sleep(std::time::Duration::from_secs(retry_after_secs.min(30))).await;
+                continue;
+            }
+
+            break response;
+        };
 
         if resp.status() == reqwest::StatusCode::NOT_MODIFIED {
             // Unchanged page — reuse the cached payload.
@@ -246,12 +262,10 @@ pub async fn get_valid_access_token(pool: &DbPool) -> Result<String, String> {
         return Ok(access_token);
     }
 
-    // Need to refresh
+    // Need to refresh (PKCE client does not require client_secret)
     let refresh_token = crate::security::get_secret(pool, "google_refresh_token")?
         .ok_or("No refresh token found. Please sign in again.")?;
     let client_id = get_setting(pool, "google_client_id")?.ok_or("No client ID found.")?;
-    let client_secret = crate::security::get_secret(pool, "google_client_secret")?
-        .ok_or("No client secret found.")?;
 
     let client = reqwest::Client::new();
     let resp = client
@@ -259,7 +273,6 @@ pub async fn get_valid_access_token(pool: &DbPool) -> Result<String, String> {
         .form(&[
             ("grant_type", "refresh_token"),
             ("client_id", &client_id),
-            ("client_secret", &client_secret),
             ("refresh_token", &refresh_token),
         ])
         .send()

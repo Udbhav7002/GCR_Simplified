@@ -16,6 +16,9 @@ export interface AppSettings {
   default_fingerprint_threshold: number;
   default_semantic_threshold: number;
   theme: "light" | "dark" | "system";
+  download_concurrency?: number;
+  extraction_concurrency?: number;
+  grading_concurrency?: number;
 }
 
 export interface DashboardStats {
@@ -201,6 +204,13 @@ export interface GradeAllResult {
   graded: GradeSubmissionResult[];
   failed: number;
   failed_names: string[];
+}
+
+export interface GradingProgressPayload {
+  current: number;
+  total: number;
+  student_name: string;
+  status: string;
 }
 
 export interface GradeOverride {

@@ -194,11 +194,11 @@ To connect GCR Simplified to your Google Classroom, you will need a standard Goo
 4. Navigate to **APIs & Services → Credentials**:
    * Click **Create Credentials → OAuth client ID**.
    * Application type: **Desktop app**.
-5. Copy your **Client ID** and **Client Secret**, open GCR Simplified **Settings**, and click **Connect Google Account**.
+5. Copy your **Client ID** (no client secret needed — PKCE is enabled by default), open GCR Simplified **Settings**, paste your Client ID, and click **Connect Google Account**.
 
 ### AI Configuration (Gemini API)
 1. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).
-2. Paste it into **Settings → AI Configuration → Google Gemini API Key**.
+2. Paste it into **Settings → Gemini API Key**.
 
 ---
 
@@ -206,29 +206,29 @@ To connect GCR Simplified to your Google Classroom, you will need a standard Goo
 
 ```text
 GCR_Simplified/
-├── src/                               # React 18 + TypeScript Frontend
+├── src/                               # React 19 + TypeScript Frontend (Base UI / Vite)
 │   ├── components/
 │   │   ├── layout/                    # Header, Sidebar navigation
-│   │   └── ui/                        # Base UI / shadcn design system
+│   │   └── ui/                        # Base UI / shadcn design system & toasts
 │   ├── pages/
-│   │   ├── Dashboard.tsx              # Overview statistics & recent courses
+│   │   ├── Dashboard.tsx              # Overview statistics & quick shortcuts
 │   │   ├── Courses.tsx                # Google Classroom course grid
 │   │   ├── CourseDetail.tsx           # Student roster & coursework lists
 │   │   ├── AssignmentSubmissions.tsx  # Ingestion, downloader & text viewer
 │   │   ├── MissingSubmissions.tsx     # Non-submitters tracker & email nudges
 │   │   ├── PlagiarismReport.tsx       # Plagiarism matrix & side-by-side diff
 │   │   ├── Gradebook.tsx              # AI evaluation & score override matrix
-│   │   └── Settings.tsx               # OAuth credentials & Gemini key setup
+│   │   └── Settings.tsx               # OAuth credentials, Gemini key & maintenance
 │   ├── lib/
 │   │   ├── ipc.ts                     # Type-safe Tauri IPC invoke bridge
 │   │   └── types.ts                   # TypeScript interfaces (mirrors Rust structs)
-│   └── App.tsx                        # Client-side router
+│   └── App.tsx                        # Client-side HashRouter with SetupGuard
 │
 └── src-tauri/                         # Rust Core Backend
     ├── src/
-    │   ├── db/                        # SQLite pool & schema (WAL mode)
+    │   ├── db/                        # SQLite pool & versioned migration runner (WAL mode)
     │   ├── google/                    # OAuth2 PKCE loopback, Classroom, Drive, Gmail
-    │   ├── extraction/                # PDF (pdf-extract), DOCX (zip+xml), text
+    │   ├── extraction/                # PDF (pdf-extract), DOCX (zip+xml), text parsers
     │   ├── plagiarism/                # Winnowing hashing & TF-IDF Cosine algorithms
     │   ├── grading/                   # Gemini API client & rubric evaluation commands
     │   ├── export/                    # rust_xlsxwriter 4-sheet gradebook generator
@@ -242,23 +242,27 @@ GCR_Simplified/
 ## 🔒 Privacy & FERPA Compliance
 
 * **Local-First Architecture:** All student data, files, and similarity matrix calculations remain strictly on the teacher's local device.
+* **Full Disk Encryption:** On macOS, enable **FileVault** (System Settings ▸ Privacy & Security ▸ FileVault). On Windows, enable **BitLocker** (Settings ▸ System ▸ Storage ▸ BitLocker) to ensure student submissions and the SQLite database are encrypted at rest.
 * **No Student Accounts:** Students never interact with or register on GCR Simplified, completely bypassing COPPA and student-data privacy liabilities.
 * **Encrypted Credential Storage:** OAuth tokens and API keys are stored in the OS secure credential store (**macOS Keychain**, **Windows Credential Manager**, or **Linux Secret Service**), never in plaintext.
-* **Clean Purge:** Submissions and cached texts can be cleared with one click at the end of the term.
+* **Clean Purge & Backup:** Submissions and cached texts can be cleared with one click at the end of the term. Database snapshots can be backed up and restored safely using SQLite VACUUM and Backup APIs.
 
 ---
 
 ## 🧪 Testing & Quality Gates
 
 ```bash
-# Run Rust unit tests (Winnowing, TF-IDF, DOCX parser, schemas)
+# Run Rust test suite (55+ unit tests covering winnowing, tf-idf, db backup, grading, extraction)
 cd src-tauri && cargo test
 
-# Run frontend type-check and production build
-npm run build
+# Run Rust linter
+cd src-tauri && cargo clippy -- -D warnings
 
-# Run Rust formatting and linter
-cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings
+# Run frontend test suite (Vitest + React Testing Library)
+npm run test
+
+# Run frontend linter and TypeScript production build
+npm run lint && npm run build
 ```
 
 ---

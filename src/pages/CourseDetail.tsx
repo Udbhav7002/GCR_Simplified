@@ -29,7 +29,7 @@ export function CourseDetail() {
         ]);
         setStudents(studentsData);
         setCoursework(courseworkData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
         setError(friendlyError(err));
       } finally {
