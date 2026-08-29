@@ -1,18 +1,17 @@
-pub mod commands;
-pub mod db;
-pub mod export;
-pub mod extraction;
-pub mod google;
-pub mod grading;
-pub mod plagiarism;
-pub mod security;
+//! GCR Simplified — AI-powered assignment evaluation & integrity system for teachers
+//!
+//! A Tauri v2 desktop application that integrates with Google Classroom to provide:
+//! - AI-assisted grading with Gemini
+//! - Plagiarism detection (winnowing + TF-IDF)
+//! - Automated submission download & text extraction
+//! - Gradebook management with Excel export
 
-use crate::commands::{maintenance::*, rubrics::*, settings::*, submissions::*, *};
-use crate::export::commands::*;
-use crate::extraction::commands::*;
-use crate::google::{auth::*, classroom::*, drive::*, gmail::*};
-use crate::grading::commands::*;
-use crate::plagiarism::commands::*;
+pub mod core;
+pub mod domain;
+pub mod api;
+
+use crate::core::db;
+use crate::api::commands::*;
 use std::fs;
 use tauri::Manager;
 
@@ -44,62 +43,75 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            // Setup DB in app data directory
             let app_dir = app
                 .path()
                 .app_data_dir()
-                .expect("Failed to get app data dir");
+                .map_err(|e| format!("Failed to get app data dir: {}", e))?;
             if !app_dir.exists() {
-                fs::create_dir_all(&app_dir).expect("Failed to create app data dir");
+                fs::create_dir_all(&app_dir)
+                    .map_err(|e| format!("Failed to create app data dir: {}", e))?;
             }
 
             let db_path = app_dir.join("gcr_simplified.db");
-            let pool = db::init_db(db_path);
+            let pool = db::init_db(db_path)
+                .map_err(|e| format!("Database initialization failed: {}", e))?;
 
-            // Manage DB pool in Tauri State
             app.manage(pool);
-            app.manage(crate::commands::AppCancellationFlag::default());
+            app.manage(crate::core::commands::AppCancellationFlag::default());
+            app.manage(crate::core::commands::LoginCancelFlag::default());
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Core commands
             cancel_active_tasks,
-            create_rubric_criterion,
-            get_rubric_criteria,
-            update_rubric_criterion,
-            delete_rubric_criterion,
-            get_dashboard_stats,
             start_google_login,
             cancel_google_login,
             get_google_auth_status,
             google_logout,
+            get_settings,
+            save_settings,
+            // Google Classroom
             list_google_courses,
             list_google_coursework,
             list_google_students,
             list_google_submissions,
             get_missing_submissions,
+            nudge_student,
+            // Drive
             download_submission_file,
             download_all_submissions,
-            nudge_student,
+            // Extraction
             extract_text,
             extract_all_submissions,
             get_extraction_result,
+            // Plagiarism
             run_plagiarism_check,
             list_plagiarism_runs,
             get_plagiarism_run,
-            get_settings,
-            save_settings,
+            purge_plagiarism_runs,
+            // Grading
             grade_submission,
             grade_all_assignment,
             update_grade_override,
             approve_grade,
             approve_all_grades,
             get_gradebook,
+            push_grades_to_classroom,
+            email_grades_to_students,
+            // Rubrics
+            create_rubric_criterion,
+            get_rubric_criteria,
+            update_rubric_criterion,
+            delete_rubric_criterion,
+            // Export
             export_gradebook,
+            // Maintenance
             purge_downloaded_submissions,
-            purge_plagiarism_runs,
             backup_database,
-            restore_database
+            restore_database,
+            // Dashboard
+            get_dashboard_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

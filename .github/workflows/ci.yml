@@ -55,3 +55,10 @@ jobs:
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
+
+      - name: Generate code coverage
+        working-directory: src-tauri
+        run: cargo tarpaulin --out Xml

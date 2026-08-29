@@ -50,3 +50,8 @@ log = "0.4"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = "0.5"
+
+[[bench]]
+name = "plagiarism_bench"
+harness = false
