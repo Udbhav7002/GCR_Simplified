@@ -73,11 +73,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     applyThemeClass(next);
     try {
-      const current = await getSettings().catch(() => ({
-        gemini_model: "gemini-2.5-flash",
-        default_fingerprint_threshold: 0.4,
-        default_semantic_threshold: 0.8,
-      }));
+      const current = await getSettings();
       await saveSettings({
         ...current,
         theme: next,
@@ -94,11 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => darkMedia.removeEventListener("change", onChange);
   }, [theme]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme, loaded }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, setTheme, loaded }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

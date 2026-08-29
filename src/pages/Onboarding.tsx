@@ -1,242 +1,255 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   GraduationCap,
-  Sparkles,
   ShieldCheck,
   ArrowRight,
   CheckCircle2,
   Loader2,
   KeyRound,
-  FileSearch,
-  Bot,
+  ExternalLink,
 } from "lucide-react";
-import { getGoogleAuthStatus, getSettings, getDashboardStats } from "@/lib/ipc";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  startGoogleLogin,
+  cancelGoogleLogin,
+  getGoogleAuthStatus,
+  getSettings,
+  saveSettings,
+} from "@/lib/ipc";
 import { dismissOnboarding } from "@/lib/onboarding";
-import type { GoogleAuthStatus, AppSettings, DashboardStats } from "@/lib/types";
+import { useToast, friendlyError } from "@/components/ui/toaster";
+import type { GoogleAuthStatus, AppSettings } from "@/lib/types";
 
 export function Onboarding() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [auth, setAuth] = useState<GoogleAuthStatus>({ is_authenticated: false });
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
+
+  const reload = useCallback(async () => {
+    const [authRes, settingsRes] = await Promise.all([getGoogleAuthStatus(), getSettings()]);
+    setAuth(authRes);
+    setSettings(settingsRes);
+    setApiKey(settingsRes.gemini_api_key || "");
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const [authRes, settingsRes, statsRes] = await Promise.all([
-          getGoogleAuthStatus(),
-          getSettings(),
-          getDashboardStats(),
-        ]);
-        setAuth(authRes);
-        setSettings(settingsRes);
-        setStats(statsRes);
+        await reload();
       } catch (err) {
         console.error("Failed to load onboarding status:", err);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reload]);
 
   const googleConnected = auth.is_authenticated;
   const geminiConfigured = Boolean(settings?.gemini_api_key && settings.gemini_api_key.trim().length > 0);
-  const courseSynced = Boolean(stats && stats.total_courses > 0);
+  const stepsDone = [googleConnected, geminiConfigured].filter(Boolean).length;
 
-  const stepsDone = [googleConnected, geminiConfigured, courseSynced].filter(Boolean).length;
+  const finish = useCallback(
+    (to: string) => {
+      dismissOnboarding();
+      navigate(to);
+    },
+    [navigate]
+  );
 
-  const handleStart = useCallback(() => {
-    dismissOnboarding();
-    navigate("/");
-  }, [navigate]);
+  const handleConnect = async () => {
+    try {
+      setLoginLoading(true);
+      const status = await startGoogleLogin();
+      setAuth(status);
+      toast("Connected to Google Classroom", "success");
+    } catch (err) {
+      toast(friendlyError(err), "error");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleSaveKey = async () => {
+    if (!apiKey.trim()) {
+      toast("Paste your Gemini API key first.", "error");
+      return;
+    }
+    try {
+      setSavingKey(true);
+      const current = settings ?? (await getSettings());
+      await saveSettings({ ...current, gemini_api_key: apiKey.trim() });
+      await reload();
+      toast("API key saved", "success");
+    } catch (err) {
+      toast("Could not save API key: " + friendlyError(err), "error");
+    } finally {
+      setSavingKey(false);
+    }
+  };
 
   return (
-    <div className="p-8 space-y-8 max-w-4xl mx-auto">
-      {/* Hero banner */}
+    <div className="p-8 space-y-8 max-w-2xl mx-auto">
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground p-8">
         <div className="relative z-10">
-          <h1 className="text-2xl font-bold">Welcome to GCR Simplified! 🎉</h1>
+          <h1 className="text-2xl font-bold">Two things, then you can grade</h1>
           <p className="mt-2 text-primary-foreground/80 max-w-lg">
-            Grade · Check · Report — a desktop power tool that automates assignment evaluation, plagiarism detection,
-            and AI grading on top of Google Classroom. Set up in under 5 minutes.
+            Sign in with Classroom, paste a free Gemini key. No Google Cloud Console.
           </p>
-          <div className="flex flex-wrap gap-3 mt-5">
-            <Button variant="secondary" className="gap-2" onClick={handleStart}>
-              Get started
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              className="gap-2 text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
-              onClick={handleStart}
-            >
-              Skip for now
-            </Button>
-          </div>
         </div>
-        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -right-4 -bottom-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
       </div>
 
-      {/* Progress */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full bg-primary transition-all duration-500"
-            style={{ width: `${(stepsDone / 3) * 100}%` }}
+            style={{ width: `${(stepsDone / 2) * 100}%` }}
           />
         </div>
-        <span className="text-sm text-muted-foreground whitespace-nowrap">{stepsDone}/3 setup steps done</span>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">{stepsDone}/2 done</span>
       </div>
 
-      {/* Setup checklist */}
-      <div className="grid grid-cols-1 gap-4">
-        <SetupStep
-          icon={<GraduationCap className="w-5 h-5" />}
-          title="Connect Google Classroom"
-          description="Sign in with your school Google account to sync courses, rosters, and assignments."
-          done={googleConnected}
-          doneLabel={auth.email ? `Connected as ${auth.email}` : "Connected"}
-          actionLabel="Go to Settings"
-          onAction={() => navigate("/settings")}
-          loading={loading}
-        />
-        <SetupStep
-          icon={<KeyRound className="w-5 h-5" />}
-          title="Add your Gemini API key"
-          description="Get a free key from Google AI Studio and paste it in Settings to enable AI grading."
-          done={geminiConfigured}
-          doneLabel="API key configured"
-          actionLabel="Add API key"
-          onAction={() => navigate("/settings")}
-          loading={loading}
-        />
-        <SetupStep
-          icon={<Sparkles className="w-5 h-5" />}
-          title="Sync a course"
-          description="Open Courses to pull in your Google Classroom courses and pick an assignment to work with."
-          done={courseSynced}
-          doneLabel={`${stats?.total_courses ?? 0} course(s) synced`}
-          actionLabel="View Courses"
-          onAction={() => navigate("/courses")}
-          loading={loading}
-        />
-      </div>
-
-      <Separator />
-
-      {/* Try-it suggestions */}
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Try these next</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Once connected, explore the core features on any assignment:
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
+      <Card className={googleConnected ? "border-primary/40" : undefined}>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                googleConnected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <FileSearch className="w-5 h-5 text-destructive" />
-                </div>
-                <CardTitle className="text-base">Check plagiarism</CardTitle>
+                <h3 className="font-medium">Connect Google Classroom</h3>
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                ) : googleConnected ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {auth.email || "Connected"}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">Needed</Badge>
+                )}
               </div>
-              <CardDescription>
-                Runs offline winnowing + TF-IDF analysis to catch copied work between students.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/courses")}>
-                Open an assignment
-                <ArrowRight className="w-3.5 h-3.5" />
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Use the same Google account you use for Classroom. A browser window will open.
+              </p>
+            </div>
+          </div>
+          {!googleConnected && (
+            <div className="flex items-center gap-2 pl-[3.75rem]">
+              <Button size="sm" onClick={handleConnect} disabled={loginLoading} className="gap-1.5">
+                {loginLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Waiting for browser…
+                  </>
+                ) : (
+                  "Connect Google"
+                )}
               </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
+              {loginLoading && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    cancelGoogleLogin().catch(() => {});
+                    setLoginLoading(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={geminiConfigured ? "border-primary/40" : undefined}>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                geminiConfigured ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-lg bg-chart-2/10 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-chart-2" />
-                </div>
-                <CardTitle className="text-base">AI-grade with Gemini</CardTitle>
+                <h3 className="font-medium">Paste your Gemini API key</h3>
+                {geminiConfigured ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Saved
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">For AI grading</Badge>
+                )}
               </div>
-              <CardDescription>
-                Score submissions against your rubric with per-criterion justifications, then review and approve.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/courses")}>
-                Open an assignment
-                <ArrowRight className="w-3.5 h-3.5" />
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Free from Google AI Studio. Skip this if you only want plagiarism checks.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 pl-[3.75rem]">
+            <Input
+              type="password"
+              placeholder="AIzaSy…"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              aria-label="Gemini API key"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={handleSaveKey} disabled={savingKey} className="gap-1.5">
+                {savingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Save key
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+              <button
+                type="button"
+                className="text-sm text-primary underline inline-flex items-center gap-1"
+                onClick={() =>
+                  openUrl("https://aistudio.google.com/apikey").catch(() =>
+                    window.open("https://aistudio.google.com/apikey", "_blank")
+                  )
+                }
+              >
+                Get a free key
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button className="gap-2" onClick={() => finish(googleConnected ? "/courses" : "/")} disabled={loading}>
+          {googleConnected ? "Open my courses" : "Continue"}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" onClick={() => finish("/")}>
+          Skip for now
+        </Button>
       </div>
 
-      {/* Privacy note */}
       <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/60">
         <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Local-first & private.</span> Submissions and similarity
-          analysis stay 100% on your machine. Credentials are stored in your OS keychain. AI grading sends submission
-          text to Google Gemini — review before you grade.
+          <span className="font-medium text-foreground">If Google says “Access blocked”:</span> the app is still in
+          testing. Email the developer the Google address you sign in with so they can add you as a tester.
         </p>
       </div>
     </div>
-  );
-}
-
-interface SetupStepProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  done: boolean;
-  doneLabel: string;
-  actionLabel: string;
-  onAction: () => void;
-  loading: boolean;
-}
-
-function SetupStep({ icon, title, description, done, doneLabel, actionLabel, onAction, loading }: SetupStepProps) {
-  return (
-    <Card className={done ? "border-primary/40" : undefined}>
-      <CardContent className="flex items-center gap-4 p-4">
-        <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-            done ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-medium">{title}</h3>
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            ) : done ? (
-              <Badge variant="secondary" className="gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {doneLabel}
-              </Badge>
-            ) : (
-              <Badge variant="outline">Pending</Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
-        </div>
-        {!done && (
-          <Button size="sm" className="gap-1.5 shrink-0" onClick={onAction}>
-            {actionLabel}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Button>
-        )}
-      </CardContent>
-    </Card>
   );
 }

@@ -4,6 +4,7 @@ import { LayoutDashboard, Settings, BookOpen, ListChecks, HelpCircle } from "luc
 import { Separator } from "@/components/ui/separator";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { isOnboardingDismissed, ONBOARDING_CHANGED_EVENT } from "@/lib/onboarding";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -17,11 +18,18 @@ const bottomItems = [
 
 export function Sidebar() {
   const [appVersion, setAppVersion] = useState<string>("v0.1.1");
+  const [showSetup, setShowSetup] = useState(() => !isOnboardingDismissed());
 
   useEffect(() => {
     getVersion()
       .then((v) => setAppVersion(`v${v}`))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setShowSetup(!isOnboardingDismissed());
+    window.addEventListener(ONBOARDING_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(ONBOARDING_CHANGED_EVENT, sync);
   }, []);
 
   const handleReportIssue = () => {
@@ -32,7 +40,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex flex-col w-64 border-r border-border bg-card h-screen sticky top-0">
+    <aside id="tour-sidebar" className="flex flex-col w-64 border-r border-border bg-card h-screen sticky top-0">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -55,7 +63,9 @@ export function Sidebar() {
             end={item.to === "/"}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                isActive
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`
             }
           >
@@ -68,13 +78,17 @@ export function Sidebar() {
       {/* Bottom Nav */}
       <div className="px-3 pb-4 space-y-1">
         <Separator className="mb-3" />
-        {bottomItems.map((item) => (
+        {bottomItems
+          .filter((item) => item.to !== "/onboarding" || showSetup)
+          .map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                isActive
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`
             }
           >

@@ -179,15 +179,24 @@ export interface GradebookRow {
   student_id: string;
   student_name: string;
   student_email: string | null;
+  /** Roll number as stored locally (currently the Classroom user id). */
+  roll_number: string;
+  /** Registration number parsed from the uploaded filename, if any. */
+  file_reg_no: string | null;
+  /** Name parsed from the uploaded filename, if any. */
+  file_name_hint: string | null;
   grading_status: string;
   ai_total_score: number | null;
   ai_feedback: string | null;
+  /** "text" or "vision" (handwritten/scanned graded via Gemini vision). */
+  graded_via: string;
   grades: Grade[];
 }
 
 export interface GradebookView {
   assignment_id: string;
   assignment_title: string;
+  class_name: string;
   rubric: RubricCriterion[];
   rows: GradebookRow[];
 }
@@ -198,6 +207,8 @@ export interface GradeSubmissionResult {
   total_score: number;
   feedback: string;
   graded_at: string;
+  /** "text" or "vision" (handwritten/scanned graded via Gemini vision). */
+  graded_via: string;
 }
 
 export interface GradeAllResult {

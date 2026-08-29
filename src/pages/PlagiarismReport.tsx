@@ -1,26 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  runPlagiarismCheck,
-  listPlagiarismRuns,
-  getPlagiarismRun,
-  getSettings,
-  cancelActiveTasks,
-} from "@/lib/ipc";
+import { runPlagiarismCheck, listPlagiarismRuns, getPlagiarismRun, getSettings, cancelActiveTasks } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { PlagiarismReport, PlagiarismRunMeta, PairwiseResult } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
+  ArrowLeft,
   ChevronRight,
   Users,
   FileSearch,
@@ -28,6 +19,9 @@ import {
   Network,
   List,
 } from "lucide-react";
+import { SimilarityMatrix } from "@/components/plagiarism/SimilarityMatrix";
+import { ClusterView } from "@/components/plagiarism/ClusterView";
+import { motion } from "framer-motion";
 
 type ViewMode = "flat" | "clusters";
 
@@ -257,32 +251,41 @@ export function PlagiarismReportPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button render={<Link to="/courses" />} variant="ghost" size="sm" className="text-muted-foreground">
-            Courses
-          </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <Button
-            render={<Link to={`/courses/${courseId}`} />}
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-          >
-            Course
-          </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} 
+      animate={{ opacity: 1, y: 0 }}
+      className="p-8 max-w-6xl mx-auto space-y-6"
+    >
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 pt-8 -mt-8 -mx-8 px-8 border-b mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
           <Button
             render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />}
             variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
+            size="icon"
+            className="mt-1 shrink-0"
+            title="Back to Submissions"
           >
-            Submissions
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">Plagiarism Report</h1>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link to="/courses" className="hover:text-foreground transition-colors">
+                Courses
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link to={`/courses/${courseId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+                Course Details
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link
+                to={`/courses/${courseId}/assignments/${courseWorkId}`}
+                className="hover:text-foreground transition-colors"
+              >
+                Submissions
+              </Link>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Plagiarism Report</h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {runs.length > 0 && (
@@ -397,203 +400,22 @@ export function PlagiarismReportPage() {
       </div>
 
       {viewMode === "clusters" ? (
-        <div className="space-y-4">
-          {clusters.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">No flagged clusters found.</CardContent>
-            </Card>
-          ) : (
-            clusters.map((cluster, idx) => {
-              const members = clusterStudents(cluster);
-              const maxCombined = Math.max(...cluster.map((r) => r.combined_score));
-              return (
-                <Card key={idx} className="border-red-200">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="destructive" className="gap-1">
-                          <Users className="w-3 h-3" /> Cluster {idx + 1}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {members.length} students · highest similarity {Math.round(maxCombined * 100)}%
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[300px]" title={members.join(", ")}>
-                        {members.join(", ")}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {cluster.map((result) => {
-                      const resultId = `${result.student_a_id}-${result.student_b_id}`;
-                      const isExpanded = expandedRows[resultId];
-                      return (
-                        <div key={resultId} className="rounded-md border bg-card">
-                          <div className="flex items-center justify-between gap-4 px-3 py-2">
-                            <div className="flex items-center gap-2 text-sm min-w-0">
-                              <span className="font-medium truncate">{result.student_a_name}</span>
-                              <span className="text-muted-foreground shrink-0">↔</span>
-                              <span className="font-medium truncate">{result.student_b_name}</span>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-xs text-muted-foreground">
-                                F: {Math.round(result.fingerprint_score * 100)}%
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                S: {Math.round(result.semantic_score * 100)}%
-                              </span>
-                              <span className="text-sm font-bold text-red-600">
-                                {Math.round(result.combined_score * 100)}%
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                aria-label={isExpanded ? "Collapse matched fragments" : "Expand matched fragments"}
-                                onClick={() => toggleRow(resultId)}
-                                disabled={result.matched_fragments.length === 0}
-                              >
-                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                          {isExpanded && result.matched_fragments.length > 0 && (
-                            <div className="px-3 pb-3 border-t pt-3 space-y-3">
-                              {result.matched_fragments.map((fragment, fragIdx) => (
-                                <div key={fragIdx} className="grid grid-cols-2 gap-4 text-sm">
-                                  <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-md">
-                                    <div className="text-xs text-muted-foreground mb-1 font-semibold">
-                                      {result.student_a_name}
-                                    </div>
-                                    <div>{fragment.text_a}</div>
-                                  </div>
-                                  <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-md">
-                                    <div className="text-xs text-muted-foreground mb-1 font-semibold">
-                                      {result.student_b_name}
-                                    </div>
-                                    <div>{fragment.text_b}</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-              );
-            })
-          )}
-        </div>
+        <ClusterView
+          clusters={clusters}
+          expandedRows={expandedRows}
+          toggleRow={toggleRow}
+          clusterStudents={clusterStudents}
+        />
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student A</TableHead>
-                <TableHead>Student B</TableHead>
-                <TableHead>Fingerprint</TableHead>
-                <TableHead>Semantic</TableHead>
-                <TableHead>Combined</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.results.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No pairs to compare or no submissions extracted.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                report.results.map((result) => {
-                  const resultId = `${result.student_a_id}-${result.student_b_id}`;
-                  const isExpanded = expandedRows[resultId];
-
-                  return (
-                    <React.Fragment key={resultId}>
-                      <TableRow className={result.flagged ? "bg-red-50/50" : ""}>
-                        <TableCell className="font-medium">{result.student_a_name}</TableCell>
-                        <TableCell className="font-medium">{result.student_b_name}</TableCell>
-                        <TableCell>
-                          <span className={`font-semibold ${getScoreColor(result.fingerprint_score, "fingerprint")}`}>
-                            {Math.round(result.fingerprint_score * 100)}%
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`font-semibold ${getScoreColor(result.semantic_score, "semantic")}`}>
-                            {Math.round(result.semantic_score * 100)}%
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-bold">{Math.round(result.combined_score * 100)}%</span>
-                        </TableCell>
-                        <TableCell>
-                          {result.flagged ? (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Flagged
-                            </Badge>
-                          ) : result.combined_score >= report.fingerprint_threshold ? (
-                            <Badge
-                              variant="secondary"
-                              className="bg-yellow-100 text-yellow-800 gap-1 border-yellow-200"
-                            >
-                              <AlertTriangle className="w-3 h-3" /> Suspicious
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 gap-1 border-green-200">
-                              <CheckCircle2 className="w-3 h-3" /> Clear
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={isExpanded ? "Collapse matched fragments" : "Expand matched fragments"}
-                            onClick={() => toggleRow(resultId)}
-                            disabled={result.matched_fragments.length === 0}
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && result.matched_fragments.length > 0 && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="p-0 border-b-0">
-                            <div className="bg-muted/30 p-4 border-b">
-                              <h4 className="text-sm font-semibold mb-3">Matched Fragments</h4>
-                              <div className="space-y-4">
-                                {result.matched_fragments.map((fragment, idx) => (
-                                  <div key={idx} className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md">
-                                      <div className="text-xs text-muted-foreground mb-1 font-semibold">
-                                        {result.student_a_name}
-                                      </div>
-                                      <div>{fragment.text_a}</div>
-                                    </div>
-                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md">
-                                      <div className="text-xs text-muted-foreground mb-1 font-semibold">
-                                        {result.student_b_name}
-                                      </div>
-                                      <div>{fragment.text_b}</div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+          <SimilarityMatrix
+            report={report}
+            expandedRows={expandedRows}
+            toggleRow={toggleRow}
+            getScoreColor={getScoreColor}
+          />
         </Card>
       )}
-    </div>
+    </motion.div>
   );
 }

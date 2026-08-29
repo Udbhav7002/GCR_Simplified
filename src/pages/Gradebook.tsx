@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
@@ -12,26 +12,30 @@ import {
   createRubricCriterion,
   deleteRubricCriterion,
   cancelActiveTasks,
+  pushGradesToClassroom,
+  emailGradesToStudents,
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  ChevronRight,
-  RefreshCw,
-  Loader2,
-  AlertTriangle,
-  Edit2,
-  Shield,
-  Brain,
-  FileSpreadsheet,
-  Plus,
-} from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus, UploadCloud, Mail } from "lucide-react";
+
+import { GradingProgressBar } from "@/components/gradebook/GradingProgressBar";
+import { GradebookTable } from "@/components/gradebook/GradebookTable";
+import { GradeOverrideDialog } from "@/components/gradebook/GradeOverrideDialog";
+import { useKeyboardShortcuts } from "@/lib/useKeyboardShortcuts";
+import { useUndoStack } from "@/lib/useUndoStack";
+import { motion } from "framer-motion";
+
+type GradeOverrideAction = {
+  gradeId: string;
+  previousScore: number | null;
+  previousFeedback: string | null;
+  newScore: number;
+};
 
 export function Gradebook() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -52,6 +56,14 @@ export function Gradebook() {
   const [newCriterionName, setNewCriterionName] = useState("");
   const [newCriterionMax, setNewCriterionMax] = useState("10");
   const [savingCriterion, setSavingCriterion] = useState(false);
+  const [pushingToClassroom, setPushingToClassroom] = useState(false);
+  const [emailingGrades, setEmailingGrades] = useState(false);
+  const [confirmPush, setConfirmPush] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState(false);
+
+  const { push, undo } = useUndoStack<GradeOverrideAction>();
+
+  const gradingUnlistenRef = useRef<(() => void) | null>(null);
 
   const fetchGradebook = useCallback(async () => {
     if (!assignmentId) return;
@@ -73,17 +85,50 @@ export function Gradebook() {
   }, [fetchGradebook]);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let mounted = true;
     listen<GradingProgressPayload>("grading-progress", (event) => {
-      setProgress(event.payload);
-    }).then((fn) => {
-      unlisten = fn;
-    }).catch(() => {});
-
+      if (mounted) setProgress(event.payload);
+    }).then((unlisten) => {
+      gradingUnlistenRef.current = unlisten;
+    });
     return () => {
-      if (unlisten) unlisten();
+      mounted = false;
+      if (gradingUnlistenRef.current) {
+        gradingUnlistenRef.current();
+        gradingUnlistenRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        
+        const action = undo();
+        if (action) {
+          try {
+            await updateGradeOverride({ 
+              grade_id: action.gradeId, 
+              teacher_score: action.previousScore ?? 0, 
+              teacher_feedback: action.previousFeedback ?? undefined 
+            });
+            await fetchGradebook();
+            toast("Override undone", "success");
+          } catch (err) {
+            console.error(err);
+            toast("Failed to undo override: " + friendlyError(err), "error");
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, fetchGradebook, toast]);
 
   const handleAddCriterion = async () => {
     if (!assignmentId) return;
@@ -145,6 +190,16 @@ export function Gradebook() {
         toast(`AI grading complete for ${result.graded.length} submissions`, "success");
       }
       await fetchGradebook();
+
+      if (result.graded.length > 0) {
+        try {
+          const path = await exportGradebook({ assignmentId, courseId, courseWorkId });
+          toast(`Gradebook auto-exported:\n${path}`, "success");
+        } catch (exportErr: unknown) {
+          console.error(exportErr);
+          toast("Grading done, but auto-export failed. Use Export Gradebook.", "error");
+        }
+      }
     } catch (err: unknown) {
       console.error(err);
       toast("AI grading finished: " + friendlyError(err), "info");
@@ -190,7 +245,7 @@ export function Gradebook() {
         defaultPath: defaultName,
         filters: [{ name: "Excel Workbook", extensions: ["xlsx"] }],
       });
-      if (!savePath) return; // user cancelled
+      if (!savePath) return;
 
       setExporting(true);
       const path = await exportGradebook({ assignmentId, courseId, courseWorkId, savePath });
@@ -203,15 +258,59 @@ export function Gradebook() {
     }
   };
 
-  const handleEditGrade = (grade: Grade, row: GradebookRow) => {
+  const handlePushToClassroom = async () => {
+    if (!assignmentId || !courseId || !courseWorkId) return;
+    setConfirmPush(false);
+    
+    try {
+      setPushingToClassroom(true);
+      const pushedCount = await pushGradesToClassroom(assignmentId, courseId, courseWorkId);
+      toast(`Successfully pushed ${pushedCount} grades to Classroom`, "success");
+    } catch (err: unknown) {
+      console.error(err);
+      toast("Failed to push grades: " + friendlyError(err), "error");
+    } finally {
+      setPushingToClassroom(false);
+    }
+  };
+
+  
+  const handleEmailGrades = async () => {
+    if (!assignmentId) return;
+    setConfirmEmail(false);
+    
+    try {
+      setEmailingGrades(true);
+      const count = await emailGradesToStudents(assignmentId);
+      toast(`Successfully emailed ${count} grades to students`, "success");
+    } catch (err: unknown) {
+      console.error(err);
+      toast("Failed to email grades: " + friendlyError(err), "error");
+    } finally {
+      setEmailingGrades(false);
+    }
+  };
+
+  const handleEditGrade = useCallback((grade: Grade, row: GradebookRow) => {
     setOverrideScore(grade.score?.toString() ?? "");
     setOverrideFeedback(grade.feedback ?? "");
     setEditingGrade({ grade, row });
-  };
+  }, []);
 
   const handleSaveOverride = async (gradeId: string, teacherScore: number, teacherFeedback?: string) => {
     try {
+      const previousScore = editingGrade?.grade.score ?? null;
+      const previousFeedback = editingGrade?.grade.feedback ?? null;
+
       await updateGradeOverride({ grade_id: gradeId, teacher_score: teacherScore, teacher_feedback: teacherFeedback });
+      
+      push({
+        gradeId,
+        previousScore,
+        previousFeedback,
+        newScore: teacherScore
+      });
+
       setEditingGrade(null);
       await fetchGradebook();
       toast("Grade override saved", "success");
@@ -221,51 +320,47 @@ export function Gradebook() {
     }
   };
 
-  const handleSaveOverrideClick = () => {
-    if (!editingGrade) return;
-    const score = parseFloat(overrideScore);
-    if (isNaN(score) || score < 0) {
-      toast("Please enter a valid score.", "error");
-      return;
-    }
-    handleSaveOverride(editingGrade.grade.id, score, overrideFeedback.trim() || undefined);
-  };
+  const handleApproveGrade = useCallback(
+    async (gradeId: string, approved: boolean) => {
+      try {
+        await approveGrade(gradeId, approved);
+        await fetchGradebook();
+        toast(approved ? "Grade approved" : "Approval removed", "success");
+      } catch (err: unknown) {
+        console.error(err);
+        toast("Failed to update approval: " + friendlyError(err), "error");
+      }
+    },
+    [fetchGradebook, toast]
+  );
 
-  const handleApproveGrade = async (gradeId: string, approved: boolean) => {
-    try {
-      await approveGrade(gradeId, approved);
-      await fetchGradebook();
-      toast(approved ? "Grade approved" : "Approval removed", "success");
-    } catch (err: unknown) {
-      console.error(err);
-      toast("Failed to update approval: " + friendlyError(err), "error");
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "graded":
-        return (
-          <Badge variant="default" className="bg-green-500/10 text-green-700 border-green-500/20">
-            Graded
-          </Badge>
-        );
-      case "ungraded":
-        return (
-          <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20">
-            Ungraded
-          </Badge>
-        );
-      case "reviewed":
-        return (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
-            Reviewed
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
+  useKeyboardShortcuts({
+    "Cmd+S": (e) => {
+      e.preventDefault();
+      handleExport();
+    },
+    "Cmd+Shift+A": (e) => {
+      e.preventDefault();
+      handleApproveAll();
+    },
+    "Cmd+Enter": (e) => {
+      if (editingGrade) {
+        e.preventDefault();
+        const score = parseFloat(overrideScore);
+        if (isNaN(score) || score < 0) {
+          toast("Please enter a valid score.", "error");
+          return;
+        }
+        handleSaveOverride(editingGrade.grade.id, score, overrideFeedback.trim() || undefined);
+      }
+    },
+    "Escape": (e) => {
+      if (editingGrade) {
+        e.preventDefault();
+        setEditingGrade(null);
+      }
+    },
+  });
 
   if (error) {
     return (
@@ -302,77 +397,88 @@ export function Gradebook() {
   const approvedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter((g) => g.approved).length, 0);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button render={<Link to="/courses" />} variant="ghost" size="sm" className="text-muted-foreground">
-            Courses
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} 
+      animate={{ opacity: 1, y: 0 }}
+      className="p-8 max-w-7xl mx-auto space-y-6"
+    >
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 pt-8 -mt-8 -mx-8 px-8 border-b mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Button
+            render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />}
+            variant="ghost"
+            size="icon"
+            className="mt-1 shrink-0"
+            title="Back to Submissions"
+          >
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">Gradebook</h1>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link to="/courses" className="hover:text-foreground transition-colors">
+                Courses
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link to={`/courses/${courseId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+                Course Details
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link to={`/courses/${courseId}/assignments/${courseWorkId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+                Submissions
+              </Link>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">{gradebook.assignment_title}</h1>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={fetchGradebook} disabled={loading} variant="outline" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          {gradingAll ? (
-            <Button onClick={handleCancelGrading} variant="destructive" className="gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Cancel Grading
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={fetchGradebook} disabled={loading} variant="ghost" className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
-          ) : (
+            {gradingAll ? (
+              <Button onClick={handleCancelGrading} variant="destructive" className="gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Cancel Grading
+              </Button>
+            ) : (
+              <Button
+                onClick={handleGradeAll}
+                disabled={loading || gradedCount === totalStudents || gradebook.rubric.length === 0}
+                className="gap-2"
+              >
+                <Brain className="w-4 h-4" />
+                Grade All (AI)
+              </Button>
+            )}
             <Button
-              onClick={handleGradeAll}
-              disabled={loading || gradedCount === totalStudents || gradebook.rubric.length === 0}
+              onClick={handleApproveAll}
+              disabled={loading || approvingAll || suggestedCount === 0}
               variant="outline"
               className="gap-2"
             >
-              <Brain className="w-4 h-4" />
-              Grade All (AI)
+              {approvingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+              {approvingAll ? "Approving..." : `Approve All (${suggestedCount})`}
             </Button>
-          )}
-          <Button
-            onClick={handleApproveAll}
-            disabled={loading || approvingAll || suggestedCount === 0}
-            variant="outline"
-            className="gap-2"
-          >
-            {approvingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-            {approvingAll ? "Approving..." : `Approve All Suggested (${suggestedCount})`}
-          </Button>
-          <Button onClick={handleExport} disabled={loading || exporting} className="gap-2">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            {exporting ? "Exporting..." : "Export Gradebook"}
-          </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={handleExport} disabled={loading || exporting} variant="outline" size="sm" className="gap-2">
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+              {exporting ? "Exporting..." : "Export"}
+            </Button>
+            <Button onClick={() => setConfirmPush(true)} disabled={loading || pushingToClassroom || approvedCount === 0} variant="outline" size="sm" className="gap-2">
+              {pushingToClassroom ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+              {pushingToClassroom ? "Pushing..." : "Push to Classroom"}
+            </Button>
+            <Button onClick={() => setConfirmEmail(true)} disabled={loading || emailingGrades || approvedCount === 0} variant="ghost" size="sm" className="gap-2">
+              {emailingGrades ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              {emailingGrades ? "Emailing..." : "Email Grades"}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Real-time Grading Progress Banner */}
-      {gradingAll && progress && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-4 pb-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 font-medium">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span>
-                  Grading submission {progress.current} of {progress.total}:{" "}
-                  <span className="font-semibold text-primary">{progress.student_name}</span> ({progress.status})
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%
-              </span>
-            </div>
-            <div className="w-full bg-primary/20 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-primary h-full transition-all duration-300"
-                style={{ width: `${Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {gradingAll && progress && <GradingProgressBar progress={progress} />}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -388,7 +494,7 @@ export function Gradebook() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Graded</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{gradedCount}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{gradedCount}</div>
           </CardContent>
         </Card>
         <Card>
@@ -396,7 +502,7 @@ export function Gradebook() {
             <CardTitle className="text-sm font-medium text-muted-foreground">AI Suggested</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{suggestedCount}</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{suggestedCount}</div>
           </CardContent>
         </Card>
         <Card>
@@ -404,7 +510,7 @@ export function Gradebook() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{approvedCount}</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{approvedCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -421,10 +527,7 @@ export function Gradebook() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {gradebook.rubric.map((criterion) => (
-                <div
-                  key={criterion.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/20"
-                >
+                <div key={criterion.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">{criterion.name}</p>
                     <p className="text-xs text-muted-foreground">Max marks: {criterion.max_marks}</p>
@@ -469,152 +572,58 @@ export function Gradebook() {
           <CardTitle>Submissions Gradebook</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Status</TableHead>
-                {gradebook.rubric.map((c) => (
-                  <TableHead key={c.id} className="text-center">
-                    {c.name} ({c.max_marks})
-                  </TableHead>
-                ))}
-                <TableHead className="text-right">Total Score</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {gradebook.rows.map((row) => {
-                const rowTotal = row.grades.reduce((sum, g) => sum + (g.score ?? 0), 0);
-                const maxTotal = gradebook.rubric.reduce((sum, c) => sum + c.max_marks, 0);
-
-                return (
-                  <TableRow key={row.submission_id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{row.student_name}</p>
-                        {row.student_email && (
-                          <p className="text-xs text-muted-foreground">{row.student_email}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(row.grading_status)}</TableCell>
-                    {gradebook.rubric.map((c) => {
-                      const grade = row.grades.find((g) => g.criterion_id === c.id);
-                      return (
-                        <TableCell key={c.id} className="text-center">
-                          {grade && grade.score !== null ? (
-                            <div className="inline-flex items-center gap-1.5">
-                              <span className="font-semibold text-sm">{grade.score}</span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] px-1.5 py-0 ${
-                                  grade.graded_by === "teacher"
-                                    ? "border-blue-500/40 text-blue-600 bg-blue-500/5"
-                                    : grade.approved
-                                      ? "border-green-500/40 text-green-600 bg-green-500/5"
-                                      : "border-amber-500/40 text-amber-600 bg-amber-500/5"
-                                }`}
-                              >
-                                {grade.graded_by === "teacher"
-                                  ? "Teacher"
-                                  : grade.approved
-                                    ? "Approved"
-                                    : "AI"}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0"
-                                aria-label={`Edit grade for ${row.student_name} – ${c.name}`}
-                                onClick={() => handleEditGrade(grade, row)}
-                              >
-                                <Edit2 className="w-3 h-3 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-right font-bold">
-                      {row.grading_status === "graded" ? `${rowTotal.toFixed(1)} / ${maxTotal}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {row.grades.some((g) => !g.approved && g.graded_by === "ai") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            row.grades
-                              .filter((g) => !g.approved)
-                              .forEach((g) => handleApproveGrade(g.id, true));
-                          }}
-                        >
-                          Approve All
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <GradebookTable gradebook={gradebook} onEditGrade={handleEditGrade} onApproveGrade={handleApproveGrade} />
         </CardContent>
       </Card>
 
-      {/* Override Dialog */}
-      <Dialog open={Boolean(editingGrade)} onOpenChange={(open) => !open && setEditingGrade(null)}>
+      <GradeOverrideDialog
+        editingGrade={editingGrade}
+        gradebook={gradebook}
+        overrideScore={overrideScore}
+        setOverrideScore={setOverrideScore}
+        overrideFeedback={overrideFeedback}
+        setOverrideFeedback={setOverrideFeedback}
+        onClose={() => setEditingGrade(null)}
+        onSave={handleSaveOverride}
+      />
+
+      <Dialog open={confirmPush} onOpenChange={setConfirmPush}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Grade Override</DialogTitle>
+            <DialogTitle>Push Grades to Classroom</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to push all approved grades to Google Classroom?
+            </DialogDescription>
           </DialogHeader>
-          {editingGrade && (
-            <div className="space-y-4 py-2">
-              <div>
-                <p className="text-sm font-medium">{editingGrade.row.student_name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Criterion:{" "}
-                  {gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.name || "Criterion"} (Max:{" "}
-                  {gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.max_marks})
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Score</label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max={gradebook.rubric.find((r) => r.id === editingGrade.grade.criterion_id)?.max_marks}
-                  value={overrideScore}
-                  onChange={(e) => setOverrideScore(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Teacher Feedback</label>
-                <Input
-                  placeholder="Optional feedback to the student..."
-                  value={overrideFeedback}
-                  onChange={(e) => setOverrideFeedback(e.target.value)}
-                />
-              </div>
-              {editingGrade.grade.justification && (
-                <div className="p-3 bg-muted/40 rounded-lg text-xs space-y-1">
-                  <p className="font-semibold text-muted-foreground">Original AI Justification:</p>
-                  <p>{editingGrade.grade.justification}</p>
-                </div>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditingGrade(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveOverrideClick}>Save Override</Button>
-              </div>
-            </div>
-          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPush(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePushToClassroom}>
+              Confirm
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      <Dialog open={confirmEmail} onOpenChange={setConfirmEmail}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Email Grades</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to email approved grades to students?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmEmail(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEmailGrades}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }

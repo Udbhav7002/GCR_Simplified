@@ -17,7 +17,11 @@ import {
   Trash2,
   RotateCcw,
   Sliders,
+  DownloadCloud,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   startGoogleLogin,
   cancelGoogleLogin,
@@ -31,8 +35,9 @@ import {
   restoreDatabase,
 } from "@/lib/ipc";
 import { save, open, ask } from "@tauri-apps/plugin-dialog";
+import { check } from "@tauri-apps/plugin-updater";
 import { useToast, friendlyError } from "@/components/ui/toaster";
-import { useTheme, type ThemeMode } from "@/lib/useTheme";
+import { useTheme } from "@/lib/useTheme";
 import type { GoogleAuthStatus } from "@/lib/types";
 
 export function Settings() {
@@ -45,13 +50,14 @@ export function Settings() {
   const [downloadConcurrency, setDownloadConcurrency] = useState("4");
   const [extractionConcurrency, setExtractionConcurrency] = useState("4");
   const [gradingConcurrency, setGradingConcurrency] = useState("3");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [authStatus, setAuthStatus] = useState<GoogleAuthStatus>({ is_authenticated: false });
-  const [clientId, setClientId] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [maintaining, setMaintaining] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -67,21 +73,18 @@ export function Settings() {
         setGradingConcurrency((settings.grading_concurrency ?? 3).toString());
       } catch (err) {
         console.error("Failed to load settings:", err);
+        toast("Failed to load settings: " + friendlyError(err), "error");
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [toast]);
 
   const handleGoogleConnect = async () => {
-    if (!clientId.trim()) {
-      toast("Please enter a Google OAuth Client ID", "error");
-      return;
-    }
     try {
       setLoginLoading(true);
-      const status = await startGoogleLogin(clientId.trim());
+      const status = await startGoogleLogin();
       setAuthStatus(status);
       toast("Connected to Google Classroom", "success");
     } catch (err) {
@@ -148,10 +151,6 @@ export function Settings() {
     }
   };
 
-  const handleThemeChange = (value: string | null) => {
-    if (!value) return;
-    setTheme(value as ThemeMode);
-  };
 
   const handleBackup = async () => {
     try {
@@ -246,6 +245,25 @@ export function Settings() {
     }
   };
 
+  const handleCheckUpdate = async () => {
+    try {
+      setCheckingUpdate(true);
+      const update = await check();
+      if (update) {
+        toast(`Update ${update.version} available! Downloading...`, "success");
+        await update.downloadAndInstall();
+        toast("Update installed successfully! Please restart the app.", "success");
+      } else {
+        toast("You are on the latest version.", "success");
+      }
+    } catch (err) {
+      console.error(err);
+      toast("Failed to check for updates: " + friendlyError(err), "error");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 max-w-2xl space-y-6">
@@ -258,6 +276,11 @@ export function Settings() {
 
   return (
     <div className="p-8 max-w-2xl space-y-6">
+      <div className="space-y-1.5 pb-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground">Configure app preferences, thresholds, and maintenance</p>
+      </div>
+
       {/* Google Account Integration */}
       <Card>
         <CardHeader>
@@ -291,20 +314,11 @@ export function Settings() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">OAuth Client ID</label>
-                <Input
-                  type="text"
-                  placeholder="e.g. 123456789-abc.apps.googleusercontent.com"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Google Desktop App OAuth Client ID (PKCE enabled — no client secret required).
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
+              <p className="text-sm text-muted-foreground">
+                Click Connect — a browser window opens. Sign in with the Google account you use for Classroom. You do
+                not need a Client ID or Client Secret.
+              </p>
+              <div className="flex items-center gap-3">
                 <Button onClick={handleGoogleConnect} disabled={loginLoading} className="gap-2">
                   {loginLoading ? (
                     <>
@@ -338,35 +352,51 @@ export function Settings() {
             </div>
             <div>
               <CardTitle className="text-base">Gemini API Key</CardTitle>
-              <CardDescription>Required for AI-powered rubric grading</CardDescription>
+              <CardDescription>Only needed for AI grading — skip if you just check plagiarism</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Input
-              type="password"
-              placeholder="AIzaSy..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type={showApiKey ? "text" : "password"}
+                placeholder="AIzaSy..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                aria-label="Gemini API key"
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
               Stored securely in your OS Keychain. Get a free key from{" "}
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline hover:text-primary/80"
+              <button
+                type="button"
+                onClick={() =>
+                  openUrl("https://aistudio.google.com/apikey").catch(() =>
+                    window.open("https://aistudio.google.com/apikey", "_blank")
+                  )
+                }
+                className="text-primary underline hover:text-primary/80 font-inherit bg-transparent p-0 cursor-pointer"
               >
                 Google AI Studio <ExternalLink className="w-3 h-3 inline" />
-              </a>
+              </button>
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Model</label>
+            <label htmlFor="gemini-model" className="text-sm font-medium">Model</label>
             <Select value={geminiModel} onValueChange={(v) => v && setGeminiModel(v)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="gemini-model" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -392,8 +422,24 @@ export function Settings() {
           </div>
         </CardHeader>
         <CardContent>
-          <Select value={theme} onValueChange={handleThemeChange}>
-            <SelectTrigger className="w-48">
+          <Select value={theme} onValueChange={(val) => {
+            if (!val) return;
+            const themeVal = val as "light" | "dark" | "system";
+            setTheme(themeVal);
+            if (themeVal === "dark") {
+              document.documentElement.classList.add("dark");
+            } else if (themeVal === "light") {
+              document.documentElement.classList.remove("dark");
+            } else {
+              if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                document.documentElement.classList.add("dark");
+              } else {
+                document.documentElement.classList.remove("dark");
+              }
+            }
+            saveSettings({ theme: themeVal }).catch(console.error);
+          }}>
+            <SelectTrigger aria-label="Theme" className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -421,8 +467,9 @@ export function Settings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fingerprint Threshold (%)</label>
+              <label htmlFor="fingerprint-threshold" className="text-sm font-medium">Fingerprint Threshold (%)</label>
               <Input
+                id="fingerprint-threshold"
                 type="number"
                 min="0"
                 max="100"
@@ -432,8 +479,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Exact text matching via Winnowing (default 40%)</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Semantic Threshold (%)</label>
+              <label htmlFor="semantic-threshold" className="text-sm font-medium">Semantic Threshold (%)</label>
               <Input
+                id="semantic-threshold"
                 type="number"
                 min="0"
                 max="100"
@@ -462,8 +510,9 @@ export function Settings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Downloads</label>
+              <label htmlFor="download-concurrency" className="text-sm font-medium">Downloads</label>
               <Input
+                id="download-concurrency"
                 type="number"
                 min="1"
                 max="16"
@@ -473,8 +522,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Drive downloads (1–16)</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Text Extraction</label>
+              <label htmlFor="extraction-concurrency" className="text-sm font-medium">Text Extraction</label>
               <Input
+                id="extraction-concurrency"
                 type="number"
                 min="1"
                 max="16"
@@ -484,8 +534,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">PDF/Docx parsers (1–16)</p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">AI Grading</label>
+              <label htmlFor="grading-concurrency" className="text-sm font-medium">AI Grading</label>
               <Input
+                id="grading-concurrency"
                 type="number"
                 min="1"
                 max="10"
@@ -495,6 +546,27 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Gemini API workers (1–10)</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* App Updates */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <DownloadCloud className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-base">App Updates</CardTitle>
+              <CardDescription>Check for and install the latest version of GCR Simplified</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleCheckUpdate} disabled={checkingUpdate} variant="outline" className="gap-2">
+            {checkingUpdate ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
+            Check for Updates
+          </Button>
         </CardContent>
       </Card>
 
@@ -521,17 +593,25 @@ export function Settings() {
               <RotateCcw className="w-4 h-4" />
               Restore Database
             </Button>
-            <Button onClick={handlePurgeFiles} disabled={maintaining} variant="outline" className="gap-2">
+            <Button onClick={handlePurgeFiles} disabled={maintaining} variant="destructive" className="gap-2">
               <Trash2 className="w-4 h-4" />
               Purge Downloaded Files
             </Button>
-            <Button onClick={handlePurgePlagiarismHistory} disabled={maintaining} variant="outline" className="gap-2">
+            <Button onClick={handlePurgePlagiarismHistory} disabled={maintaining} variant="destructive" className="gap-2">
               <Trash2 className="w-4 h-4" />
               Clean Plagiarism History
             </Button>
+            <Button onClick={() => {
+              localStorage.removeItem("gcr_tour_completed");
+              window.location.href = "/";
+            }} disabled={maintaining} variant="outline" className="gap-2">
+              <RotateCcw className="w-4 h-4" />
+              Reset Tour
+            </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Backups are created via atomic SQLite VACUUM snapshots. Restores automatically create a safety rollback point.
+            Backups are created via atomic SQLite VACUUM snapshots. Restores automatically create a safety rollback
+            point.
           </p>
         </CardContent>
       </Card>

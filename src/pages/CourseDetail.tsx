@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { listGoogleStudents, listGoogleCoursework } from "@/lib/ipc";
+import { listGoogleStudents, listGoogleCoursework, listGoogleCourses } from "@/lib/ipc";
 import type { GoogleStudent, GoogleCourseWork } from "@/lib/types";
 import { friendlyError } from "@/components/ui/toaster";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Users, FileText, ChevronRight } from "lucide-react";
+import { ArrowLeft, RefreshCw, Users, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -14,6 +14,7 @@ export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
   const [students, setStudents] = useState<GoogleStudent[]>([]);
   const [coursework, setCoursework] = useState<GoogleCourseWork[]>([]);
+  const [courseName, setCourseName] = useState<string>("Course Details");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +24,15 @@ export function CourseDetail() {
       try {
         setLoading(true);
         setError(null);
-        const [studentsData, courseworkData] = await Promise.all([
+        const [studentsData, courseworkData, coursesData] = await Promise.all([
           listGoogleStudents(courseId, force),
           listGoogleCoursework(courseId, force),
+          listGoogleCourses(force),
         ]);
         setStudents(studentsData);
         setCoursework(courseworkData);
+        const course = coursesData.find((c) => c.id === courseId);
+        if (course) setCourseName(course.name);
       } catch (err: unknown) {
         console.error(err);
         setError(friendlyError(err));
@@ -66,21 +70,35 @@ export function CourseDetail() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button render={<Link to="/courses" />} variant="ghost" size="sm" className="text-muted-foreground">
-            Courses
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 pt-8 -mt-8 -mx-8 px-8 border-b mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Button
+            render={<Link to="/courses" />}
+            variant="ghost"
+            size="icon"
+            className="mt-1 shrink-0"
+            title="Back to Courses"
+          >
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">Course Details</h1>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link to="/courses" className="hover:text-foreground transition-colors">
+                Courses
+              </Link>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">{courseName}</h1>
+          </div>
         </div>
-        <Button onClick={() => fetchData(true)} disabled={loading} variant="outline" className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Sync
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => fetchData(true)} disabled={loading} variant="outline" className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Sync
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="assignments" className="space-y-6">
+      <Tabs defaultValue="assignments" className="flex-col space-y-6">
         <TabsList>
           <TabsTrigger value="assignments" className="gap-2">
             <FileText className="w-4 h-4" />
@@ -96,13 +114,26 @@ export function CourseDetail() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse h-32"></Card>
+                <Card key={i} className="animate-pulse h-32">
+                  <CardHeader className="pb-4">
+                    <div className="h-6 bg-muted rounded w-2/3 mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-1/3"></div>
+                  </CardHeader>
+                </Card>
               ))}
             </div>
           ) : coursework.length === 0 ? (
             <Card className="border-dashed">
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                No assignments found for this course.
+              <CardContent className="flex flex-col items-center justify-center py-12 space-y-3 text-center">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium">No assignments found</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+                    This course doesn't have any assignments yet.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -151,15 +182,24 @@ export function CourseDetail() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={`skeleton-student-${i}`} className="animate-pulse">
+                      <TableCell><div className="h-4 bg-muted rounded w-32"></div></TableCell>
+                      <TableCell><div className="h-4 bg-muted rounded w-48"></div></TableCell>
+                    </TableRow>
+                  ))
                 ) : students.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                      No students enrolled.
+                    <TableCell colSpan={2} className="h-48 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                          <Users className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-medium">No students enrolled</p>
+                          <p className="text-sm text-muted-foreground mt-1">There are no students enrolled in this course.</p>
+                        </div>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

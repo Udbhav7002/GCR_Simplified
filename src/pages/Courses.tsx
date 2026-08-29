@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { listGoogleCourses } from "@/lib/ipc";
 import type { GoogleCourse } from "@/lib/types";
 import { friendlyError } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, RefreshCw, ExternalLink, BookOpen } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 function isAuthError(message: string): boolean {
   const lower = message.toLowerCase();
@@ -14,6 +15,7 @@ function isAuthError(message: string): boolean {
 }
 
 export function Courses() {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<GoogleCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +42,10 @@ export function Courses() {
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Google Classroom Courses</h1>
-          <p className="text-sm text-muted-foreground mt-1">View and manage your synced Google Classroom courses.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Google Classroom</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage Google Classroom courses and assignments.</p>
         </div>
-        <Button onClick={() => fetchCourses(true)} disabled={loading} className="gap-2">
+        <Button id="tour-sync-btn" onClick={() => fetchCourses(true)} disabled={loading} className="gap-2">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Sync
         </Button>
@@ -60,12 +62,12 @@ export function Courses() {
                 {isAuthError(error) ? "Authentication Required" : "Failed to Load Courses"}
               </h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                {isAuthError(error) ? "You need to connect your Google account in Settings." : error}
+                {isAuthError(error) ? "Connect your Google account first — it takes one click." : error}
               </p>
             </div>
             <div className="flex gap-2">
-              <Button render={<Link to="/settings" />} variant="outline">
-                Go to Settings
+              <Button render={<Link to="/onboarding" />} variant="outline">
+                Connect Google
               </Button>
               <Button onClick={() => fetchCourses(false)} variant="default">
                 Retry
@@ -104,11 +106,15 @@ export function Courses() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <Card key={course.id} className="hover:border-primary/50 transition-colors flex flex-col">
+            <Card 
+              key={course.id} 
+              className="hover:border-primary/50 transition-colors flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/courses/${course.id}`)}
+            >
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <CardTitle className="line-clamp-1" title={course.name}>
+                    <CardTitle className="line-clamp-2" title={course.name}>
                       {course.name}
                     </CardTitle>
                     {course.section && <CardDescription className="line-clamp-1">{course.section}</CardDescription>}
@@ -126,12 +132,19 @@ export function Courses() {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <Button render={<Link to={`/courses/${course.id}`} />} className="w-full gap-2" variant="default">
+                  <Button render={<Link to={`/courses/${course.id}`} />} className="flex-1 gap-2" variant="default" onClick={(e) => e.stopPropagation()}>
                     <BookOpen className="w-4 h-4" />
                     View Details
                   </Button>
                   <Button
-                    render={<a href={course.alternate_link} target="_blank" rel="noopener noreferrer" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (course.alternate_link) {
+                        openUrl(course.alternate_link).catch(() =>
+                          window.open(course.alternate_link, "_blank")
+                        );
+                      }
+                    }}
                     size="icon"
                     variant="outline"
                     title="Open in Classroom"

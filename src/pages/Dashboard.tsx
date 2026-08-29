@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   BookOpen,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { getDashboardStats } from "@/lib/ipc";
 import type { DashboardStats } from "@/lib/types";
@@ -21,6 +22,12 @@ export function Dashboard() {
   const toast = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBanner, setShowBanner] = useState(() => !localStorage.getItem("hide_welcome_banner"));
+
+  const dismissBanner = () => {
+    localStorage.setItem("hide_welcome_banner", "true");
+    setShowBanner(false);
+  };
 
   useEffect(() => {
     getDashboardStats()
@@ -34,24 +41,40 @@ export function Dashboard() {
 
   return (
     <div className="p-8 space-y-8">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground p-8">
-        <div className="relative z-10">
-          <h1 className="text-2xl font-bold">Welcome back! 👋</h1>
-          <p className="mt-2 text-primary-foreground/80 max-w-lg">
-            From submissions to scoresheets in minutes, not hours. Connect your Google Classroom to sync courses and
-            start grading.
-          </p>
-          <div className="flex gap-3 mt-5">
-            <Button variant="secondary" className="gap-2" onClick={() => navigate("/courses")}>
-              <BookOpen className="w-4 h-4" />
-              View Courses
-            </Button>
-          </div>
-        </div>
-        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -right-4 -bottom-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Overview of your synced courses and assignments</p>
       </div>
+
+      {/* Welcome Banner */}
+      {showBanner && (
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground p-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="absolute top-2 right-2 text-primary-foreground/80 hover:bg-white/20 hover:text-white z-20"
+            onClick={dismissBanner}
+            title="Dismiss"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold">Welcome back! 👋</h1>
+            <p className="mt-2 text-primary-foreground/80 max-w-lg">
+              From submissions to scoresheets in minutes, not hours. Connect your Google Classroom to sync courses and
+              start grading.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <Button variant="secondary" className="gap-2" onClick={() => { dismissBanner(); navigate("/courses"); }}>
+                <BookOpen className="w-4 h-4" />
+                View Courses
+              </Button>
+            </div>
+          </div>
+          <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -right-4 -bottom-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -111,10 +134,7 @@ export function Dashboard() {
 
       {/* Features Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          className="group hover:shadow-md transition-all hover:border-primary/30 cursor-pointer"
-          onClick={() => navigate("/courses")}
-        >
+        <Card className="group hover:shadow-md transition-all hover:border-primary/30">
           <CardHeader>
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
               <Sparkles className="w-5 h-5 text-primary" />
@@ -126,10 +146,7 @@ export function Dashboard() {
           </CardHeader>
         </Card>
 
-        <Card
-          className="group hover:shadow-md transition-all hover:border-primary/30 cursor-pointer"
-          onClick={() => navigate("/courses")}
-        >
+        <Card className="group hover:shadow-md transition-all hover:border-primary/30">
           <CardHeader>
             <div className="w-10 h-10 rounded-lg bg-chart-2/10 flex items-center justify-center mb-2 group-hover:bg-chart-2/20 transition-colors">
               <ShieldCheck className="w-5 h-5 text-chart-2" />
@@ -141,10 +158,7 @@ export function Dashboard() {
           </CardHeader>
         </Card>
 
-        <Card
-          className="group hover:shadow-md transition-all hover:border-primary/30 cursor-pointer"
-          onClick={() => navigate("/courses")}
-        >
+        <Card className="group hover:shadow-md transition-all hover:border-primary/30">
           <CardHeader>
             <div className="w-10 h-10 rounded-lg bg-chart-3/10 flex items-center justify-center mb-2 group-hover:bg-chart-3/20 transition-colors">
               <TrendingUp className="w-5 h-5 text-chart-3" />
@@ -168,7 +182,7 @@ export function Dashboard() {
             <p className="text-sm text-muted-foreground mb-4">
               Connect your Google Classroom account and sync a course to get started.
             </p>
-            <Button onClick={() => navigate("/settings")} className="gap-2">
+            <Button onClick={() => navigate("/onboarding")} className="gap-2">
               <GraduationCap className="w-4 h-4" />
               Connect Google Account
             </Button>

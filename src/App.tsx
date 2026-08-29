@@ -1,10 +1,8 @@
 import { Suspense, lazy, useEffect, useState, useRef } from "react";
 import { HashRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toaster";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/lib/useTheme";
 import { Loader2 } from "lucide-react";
@@ -32,15 +30,6 @@ const MissingSubmissions = lazy(() =>
   import("@/pages/MissingSubmissions").then((m) => ({ default: m.MissingSubmissions }))
 );
 const Gradebook = lazy(() => import("@/pages/Gradebook").then((m) => ({ default: m.Gradebook })));
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30_000,
-    },
-  },
-});
 
 function PageLoader() {
   return (
@@ -95,19 +84,32 @@ export function SetupGuard({ children }: { children: React.ReactNode }) {
 }
 
 function AppLayout() {
+  const checkedRef = useRef(false);
+
   useEffect(() => {
+    // We only want to check once per session in React strict mode
+    if (checkedRef.current) return;
+    checkedRef.current = true;
+
     let cancelled = false;
     (async () => {
       try {
         const update = await check();
-        if (!update || cancelled) return;
-        const install = await ask(`Version ${update.version} is available. Download and install now?`, {
-          title: "Update available",
-          kind: "info",
-        });
-        if (!install || cancelled) return;
-        await update.downloadAndInstall();
-        await relaunch();
+        if (cancelled) return;
+
+        if (update && update.available) {
+          const yes = await ask(`Update to ${update.version} is available!\n\nRelease notes: ${update.body}\n\nDo you want to install it now?`, { 
+            title: "Update Available", 
+            kind: "info",
+            okLabel: "Update Now",
+            cancelLabel: "Later"
+          });
+          
+          if (yes) {
+            await update.downloadAndInstall();
+            await relaunch();
+          }
+        }
       } catch (err) {
         console.warn("Updater check failed:", err);
       }
@@ -121,7 +123,6 @@ function AppLayout() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
         <main className="flex-1 overflow-y-auto">
           <Suspense fallback={<PageLoader />}>
             <SetupGuard>
@@ -151,17 +152,15 @@ function AppLayout() {
 function App() {
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <ToastProvider>
-            <ErrorBoundary>
-              <HashRouter>
-                <AppLayout />
-              </HashRouter>
-            </ErrorBoundary>
-          </ToastProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <TooltipProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <HashRouter>
+              <AppLayout />
+            </HashRouter>
+          </ErrorBoundary>
+        </ToastProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }

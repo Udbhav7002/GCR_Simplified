@@ -5,7 +5,7 @@ import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { MissingStudent } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users, Loader2, Bell } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users, Loader2, Bell } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function MissingSubmissions() {
@@ -105,45 +105,82 @@ export function MissingSubmissions() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-6xl mx-auto flex flex-col items-center justify-center space-y-4 h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">Loading missing submissions...</p>
+      <div className="p-8 max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 bg-muted rounded w-64 animate-pulse"></div>
+          <div className="h-10 bg-muted rounded w-24 animate-pulse"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 bg-muted rounded w-24"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="animate-pulse">
+          <CardHeader>
+            <div className="h-6 bg-muted rounded w-48 mb-4"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="h-4 bg-muted rounded w-1/3"></div>
+                  <div className="h-4 bg-muted rounded w-1/3"></div>
+                  <div className="h-4 bg-muted rounded w-1/4 ml-auto"></div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button render={<Link to="/courses" />} variant="ghost" size="sm" className="text-muted-foreground">
-            Courses
-          </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <Button
-            render={<Link to={`/courses/${courseId}`} />}
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-          >
-            Course
-          </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 pt-8 -mt-8 -mx-8 px-8 border-b mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
           <Button
             render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />}
             variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
+            size="icon"
+            className="mt-1 shrink-0"
+            title="Back to Submissions"
           >
-            Submissions
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">Missing Submissions</h1>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Link to="/courses" className="hover:text-foreground transition-colors">
+                Courses
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link to={`/courses/${courseId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+                Course Details
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <Link
+                to={`/courses/${courseId}/assignments/${courseWorkId}`}
+                className="hover:text-foreground transition-colors"
+              >
+                Submissions
+              </Link>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Missing Submissions</h1>
+          </div>
         </div>
-        <Button onClick={fetchMissing} disabled={loading} variant="outline" className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={fetchMissing} disabled={loading} variant="outline" className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

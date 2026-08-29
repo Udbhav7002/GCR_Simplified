@@ -22,4 +22,12 @@ describe("friendlyError", () => {
     expect(result.length).toBe(301); // 300 chars + ellipsis
     expect(result.endsWith("…")).toBe(true);
   });
+
+  it("explains Google tester-list blocks in plain language", () => {
+    const msg = friendlyError(
+      "Access blocked: GCR Simplified has not completed the Google verification process"
+    );
+    expect(msg).toMatch(/approved tester/i);
+    expect(msg).not.toMatch(/verification process/i);
+  });
 });

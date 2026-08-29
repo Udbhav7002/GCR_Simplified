@@ -17,7 +17,6 @@ import type {
   AppSettings,
   Grade,
   GradebookView,
-  GradeSubmissionResult,
   GradeAllResult,
   GradeOverride,
   DashboardStats,
@@ -41,26 +40,6 @@ export async function createRubricCriterion(params: {
   });
 }
 
-export async function getRubricCriteria(assignmentId: string): Promise<RubricCriterion[]> {
-  return invoke<RubricCriterion[]>("get_rubric_criteria", { assignmentId });
-}
-
-export async function updateRubricCriterion(params: {
-  id: string;
-  name: string;
-  description?: string;
-  maxMarks: number;
-  sortOrder: number;
-}): Promise<RubricCriterion> {
-  return invoke<RubricCriterion>("update_rubric_criterion", {
-    id: params.id,
-    name: params.name,
-    description: params.description ?? null,
-    maxMarks: params.maxMarks,
-    sortOrder: params.sortOrder,
-  });
-}
-
 export async function deleteRubricCriterion(id: string): Promise<void> {
   return invoke<void>("delete_rubric_criterion", { id });
 }
@@ -73,8 +52,8 @@ export async function cancelActiveTasks(): Promise<void> {
 
 // ── Google Auth ──
 
-export async function startGoogleLogin(clientId: string): Promise<GoogleAuthStatus> {
-  return invoke<GoogleAuthStatus>("start_google_login", { clientId });
+export async function startGoogleLogin(): Promise<GoogleAuthStatus> {
+  return invoke<GoogleAuthStatus>("start_google_login");
 }
 
 export async function cancelGoogleLogin(): Promise<void> {
@@ -153,16 +132,8 @@ export async function downloadAllSubmissions(courseId: string, courseWorkId: str
 
 // ── Text Extraction ──
 
-export async function extractText(filePath: string): Promise<ExtractionResult> {
-  return invoke<ExtractionResult>("extract_text", { filePath });
-}
-
 export async function extractAllSubmissions(courseId: string, courseWorkId: string): Promise<ExtractionResult[]> {
   return invoke<ExtractionResult[]>("extract_all_submissions", { courseId, courseWorkId });
-}
-
-export async function getExtractionResult(filePath: string): Promise<ExtractionResult | null> {
-  return invoke<ExtractionResult | null>("get_extraction_result", { filePath });
 }
 
 // ── Plagiarism Detection ──
@@ -195,15 +166,11 @@ export async function getSettings(): Promise<AppSettings> {
   return invoke<AppSettings>("get_settings");
 }
 
-export async function saveSettings(params: Partial<AppSettings>): Promise<void> {
-  return invoke<void>("save_settings", params);
+export async function saveSettings(settings: Partial<AppSettings>): Promise<void> {
+  return invoke<void>("save_settings", { settings });
 }
 
 // ── Grading ──
-
-export async function gradeSubmission(submissionId: string): Promise<GradeSubmissionResult> {
-  return invoke<GradeSubmissionResult>("grade_submission", { submissionId });
-}
 
 export async function gradeAllAssignment(assignmentId: string): Promise<GradeAllResult> {
   return invoke<GradeAllResult>("grade_all_assignment", { assignmentId });
@@ -229,6 +196,14 @@ export async function getGradebook(assignmentId: string): Promise<GradebookView>
   return invoke<GradebookView>("get_gradebook", { assignmentId });
 }
 
+export async function pushGradesToClassroom(
+  assignmentId: string,
+  courseId: string,
+  courseWorkId: string
+): Promise<number> {
+  return invoke<number>("push_grades_to_classroom", { assignmentId, courseId, courseWorkId });
+}
+
 // ── Export ──
 
 export async function exportGradebook(params: {
@@ -238,10 +213,12 @@ export async function exportGradebook(params: {
   savePath?: string;
 }): Promise<string> {
   return invoke<string>("export_gradebook", {
-    assignmentId: params.assignmentId,
-    courseId: params.courseId ?? null,
-    courseWorkId: params.courseWorkId ?? null,
-    savePath: params.savePath ?? null,
+    options: {
+      assignment_id: params.assignmentId,
+      course_id: params.courseId ?? null,
+      course_work_id: params.courseWorkId ?? null,
+      save_path: params.savePath ?? null,
+    }
   });
 }
 
@@ -267,4 +244,8 @@ export async function backupDatabase(destPath: string): Promise<string> {
 
 export async function restoreDatabase(sourcePath: string): Promise<string> {
   return invoke<string>("restore_database", { sourcePath });
+}
+
+export async function emailGradesToStudents(assignmentId: string): Promise<number> {
+  return invoke<number>("email_grades_to_students", { assignmentId });
 }

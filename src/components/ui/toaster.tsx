@@ -60,13 +60,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /// Convert an unknown error into a short, friendly message.
 export function friendlyError(err: unknown): string {
-  if (typeof err === "string") {
-    return truncate(err);
+  const raw =
+    typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("has not completed the google verification") ||
+    lower.includes("access blocked") ||
+    lower.includes("access_denied")
+  ) {
+    return "Google only allows approved tester accounts while this app is in testing. Send the developer the Google email you use for Classroom so they can add you, then try Connect again.";
   }
-  if (err instanceof Error) {
-    return truncate(err.message);
-  }
-  return truncate(String(err));
+  return truncate(raw);
 }
 
 function truncate(text: string): string {
