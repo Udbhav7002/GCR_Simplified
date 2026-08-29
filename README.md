@@ -12,7 +12,7 @@
 
 ---
 
-**[Download](#-download-for-teachers)** •
+**[Download](#-download)** •
 **[How to Use It](#-teacher-workflow-step-by-step)** •
 **[Key Features](#-key-features)** •
 **[Privacy](#-privacy--ferpa-compliance)** •
@@ -35,23 +35,19 @@ Teachers spend upwards of **140+ hours per academic year** just marking assignme
 
 ---
 
-## 📥 Download (for Teachers)
+## 📥 Download
 
 **Latest release:** [v0.1.1 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.1)
 
-| Your Mac | Download |
+| Operating System | Download |
 |----------|----------|
-| **Apple Silicon (M1/M2/M3/M4/M5)** | [`GCR.Simplified_0.1.1_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_aarch64.dmg) |
-| **Intel Mac** | [`GCR.Simplified_0.1.1_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_x64.dmg) |
+| **Windows** | [`GCR.Simplified_0.1.1_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_x64_en-US.msi) |
+| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.1_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_aarch64.dmg) |
 
-> **Not sure which Mac you have?** Click the Apple menu ▸ **About This Mac**. If it shows "Chip: Apple M1/M2/M3/M4" → use the **aarch64** file. If it shows an Intel processor → use the **x64** file.
-
-**First-time install (macOS Gatekeeper):**
+**First-time Mac install:**
 1. Open the `.dmg` and drag **GCR Simplified** to your **Applications** folder.
 2. **Right-click** the app in Applications ▸ choose **Open** ▸ click **Open** again.
 3. After this one time, it opens normally like any app.
-
-*Windows & Linux installers are also available on the [releases page](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.1).*
 
 ---
 
