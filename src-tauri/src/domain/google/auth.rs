@@ -10,7 +10,7 @@ use std::io::{Read, Write};
 use std::time::Duration;
 use tauri::{AppHandle, State};
 
-const SCOPES: &str = "https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.students https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.send email profile openid";
+const SCOPES: &str = "https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.students https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/drive.readonly email profile openid";
 
 /// Built-in OAuth Desktop client shipped with the app (PKCE — no secret).
 /// Teachers can connect without creating their own Google Cloud project.

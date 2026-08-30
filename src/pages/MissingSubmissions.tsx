@@ -1,24 +1,22 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getMissingSubmissions, listGoogleSubmissions, nudgeStudent } from "@/lib/ipc";
-import { useToast, friendlyError } from "@/components/ui/toaster";
+import { getMissingSubmissions, listGoogleSubmissions } from "@/lib/ipc";
+import { friendlyError } from "@/components/ui/toaster";
 import type { MissingStudent } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users, Loader2, Bell } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users, } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function MissingSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
-  const toast = useToast();
+  
   const [missingStudents, setMissingStudents] = useState<MissingStudent[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [submittedCount, setSubmittedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [nudgeLoading, setNudgeLoading] = useState<Record<string, boolean>>({});
 
-  const studentsWithEmail = useMemo(() => missingStudents.filter((s) => s.email), [missingStudents]);
   const missingCount = missingStudents.length;
   const submissionRate = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
 
@@ -46,40 +44,6 @@ export function MissingSubmissions() {
     fetchMissing();
   }, [fetchMissing]);
 
-  const handleNudge = async (student: MissingStudent) => {
-    if (!courseId || !courseWorkId || !student.email) return;
-    setNudgeLoading((prev) => ({ ...prev, [student.user_id]: true }));
-    try {
-      await nudgeStudent({
-        courseId,
-        courseWorkId,
-        studentEmail: student.email,
-        studentName: student.name,
-      });
-      return true;
-    } catch (err) {
-      console.error("Nudge failed:", err);
-      toast(`Failed to send nudge to ${student.name}: ${friendlyError(err)}`, "error");
-      return false;
-    } finally {
-      setNudgeLoading((prev) => ({ ...prev, [student.user_id]: false }));
-    }
-  };
-
-  const handleNudgeAll = async () => {
-    let sent = 0;
-    let failed = 0;
-    for (const student of studentsWithEmail) {
-      const ok = await handleNudge(student);
-      if (ok) sent += 1;
-      else failed += 1;
-    }
-    if (failed > 0) {
-      toast(`Reminders sent: ${sent} succeeded, ${failed} failed`, "error");
-    } else if (sent > 0) {
-      toast(`Reminder emails sent to ${sent} student(s)`, "success");
-    }
-  };
 
   if (error) {
     return (
@@ -240,17 +204,6 @@ export function MissingSubmissions() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Students Missing Submissions</CardTitle>
-            {missingCount > 0 && studentsWithEmail.length > 0 && (
-              <Button
-                onClick={handleNudgeAll}
-                disabled={Object.values(nudgeLoading).some((v) => v)}
-                variant="outline"
-                className="gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                Nudge All ({studentsWithEmail.length})
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -267,7 +220,6 @@ export function MissingSubmissions() {
                   <TableRow>
                     <TableHead>Student</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -281,36 +233,10 @@ export function MissingSubmissions() {
                           <span className="text-sm text-muted-foreground">No email on file</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {student.email && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-2"
-                            onClick={() => handleNudge(student)}
-                            disabled={nudgeLoading[student.user_id]}
-                          >
-                            {nudgeLoading[student.user_id] ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Bell className="w-3 h-3" />
-                            )}
-                            Nudge
-                          </Button>
-                        )}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              {studentsWithEmail.length === 0 && missingCount > 0 && (
-                <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <p className="text-sm text-yellow-700">
-                    <AlertTriangle className="w-4 h-4 inline mr-2" />
-                    None of the missing students have email addresses on file. Nudge via email is not available.
-                  </p>
-                </div>
-              )}
             </>
           )}
         </CardContent>

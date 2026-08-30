@@ -13,14 +13,12 @@ pub use crate::domain::google::drive::{
     download_submission_file, download_all_submissions,
 };
 
-pub use crate::domain::google::gmail::nudge_student;
-
 pub use crate::domain::google::grades::push_grade_to_classroom;
 
 pub use crate::domain::grading::commands::{
     grade_submission, grade_all_assignment, update_grade_override,
     approve_grade, approve_all_grades, get_gradebook,
-    push_grades_to_classroom, email_grades_to_students,
+    push_grades_to_classroom,
 };
 
 pub use crate::core::rubrics::{

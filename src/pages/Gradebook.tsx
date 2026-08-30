@@ -13,7 +13,7 @@ import {
   deleteRubricCriterion,
   cancelActiveTasks,
   pushGradesToClassroom,
-  emailGradesToStudents,
+  
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus, UploadCloud, Mail } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus, UploadCloud } from "lucide-react";
 
 import { GradingProgressBar } from "@/components/gradebook/GradingProgressBar";
 import { GradebookTable } from "@/components/gradebook/GradebookTable";
@@ -57,10 +57,6 @@ export function Gradebook() {
   const [newCriterionMax, setNewCriterionMax] = useState("10");
   const [savingCriterion, setSavingCriterion] = useState(false);
   const [pushingToClassroom, setPushingToClassroom] = useState(false);
-  const [emailingGrades, setEmailingGrades] = useState(false);
-  const [confirmPush, setConfirmPush] = useState(false);
-  const [confirmEmail, setConfirmEmail] = useState(false);
-
   const { push, undo } = useUndoStack<GradeOverrideAction>();
 
   const gradingUnlistenRef = useRef<(() => void) | null>(null);
@@ -275,21 +271,6 @@ export function Gradebook() {
   };
 
   
-  const handleEmailGrades = async () => {
-    if (!assignmentId) return;
-    setConfirmEmail(false);
-    
-    try {
-      setEmailingGrades(true);
-      const count = await emailGradesToStudents(assignmentId);
-      toast(`Successfully emailed ${count} grades to students`, "success");
-    } catch (err: unknown) {
-      console.error(err);
-      toast("Failed to email grades: " + friendlyError(err), "error");
-    } finally {
-      setEmailingGrades(false);
-    }
-  };
 
   const handleEditGrade = useCallback((grade: Grade, row: GradebookRow) => {
     setOverrideScore(grade.score?.toString() ?? "");
@@ -470,10 +451,6 @@ export function Gradebook() {
               {pushingToClassroom ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
               {pushingToClassroom ? "Pushing..." : "Push to Classroom"}
             </Button>
-            <Button onClick={() => setConfirmEmail(true)} disabled={loading || emailingGrades || approvedCount === 0} variant="ghost" size="sm" className="gap-2">
-              {emailingGrades ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              {emailingGrades ? "Emailing..." : "Email Grades"}
-            </Button>
           </div>
         </div>
       </div>
@@ -606,24 +583,7 @@ export function Gradebook() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={confirmEmail} onOpenChange={setConfirmEmail}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Email Grades</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to email approved grades to students?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmEmail(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEmailGrades}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </motion.div>
   );
 }

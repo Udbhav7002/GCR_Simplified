@@ -1,7 +1,6 @@
 pub mod auth;
 pub mod classroom;
 pub mod drive;
-pub mod gmail;
 pub mod grades;
 
 use crate::core::db::{DbPool, get_setting, execute_void};

@@ -77,7 +77,6 @@ pub fn run() {
             list_google_students,
             list_google_submissions,
             get_missing_submissions,
-            nudge_student,
             // Drive
             download_submission_file,
             download_all_submissions,
@@ -98,7 +97,6 @@ pub fn run() {
             approve_all_grades,
             get_gradebook,
             push_grades_to_classroom,
-            email_grades_to_students,
             // Rubrics
             create_rubric_criterion,
             get_rubric_criteria,

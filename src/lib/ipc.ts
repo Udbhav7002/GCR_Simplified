@@ -94,21 +94,6 @@ export async function getMissingSubmissions(courseId: string, courseWorkId: stri
   return invoke<MissingStudent[]>("get_missing_submissions", { courseId, courseWorkId });
 }
 
-export async function nudgeStudent(params: {
-  courseId: string;
-  courseWorkId: string;
-  studentEmail: string;
-  studentName: string;
-}): Promise<void> {
-  return invoke<void>("nudge_student", {
-    courseId: params.courseId,
-    courseWorkId: params.courseWorkId,
-    studentEmail: params.studentEmail,
-    studentName: params.studentName,
-  });
-}
-
-// ── Google Drive ──
 
 export async function downloadSubmissionFile(params: {
   fileId: string;
@@ -246,6 +231,3 @@ export async function restoreDatabase(sourcePath: string): Promise<string> {
   return invoke<string>("restore_database", { sourcePath });
 }
 
-export async function emailGradesToStudents(assignmentId: string): Promise<number> {
-  return invoke<number>("email_grades_to_students", { assignmentId });
-}
