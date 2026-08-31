@@ -4,7 +4,7 @@ All notable changes to GCR Simplified are documented in this file. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.6] - 2026-08-31
+## [0.1.7] - 2026-08-31
 
 ### Added
 - **Identical File Detection:** SHA-256 binary hashing catches students who
