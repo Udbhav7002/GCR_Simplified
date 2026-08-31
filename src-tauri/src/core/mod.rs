@@ -7,3 +7,5 @@ pub mod rubrics;
 pub mod security;
 pub mod settings;
 pub mod submissions;
+pub mod retry;
+pub mod error;

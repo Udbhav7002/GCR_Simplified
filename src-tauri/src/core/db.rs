@@ -252,7 +252,8 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), String> {
 
 pub fn init_db(db_path: PathBuf) -> Result<DbPool, String> {
     let manager = SqliteConnectionManager::file(db_path).with_init(|conn| {
-        conn.pragma_update(None, "busy_timeout", 5000_i64)?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "busy_timeout", 10000_i64)?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         Ok(())
     });
