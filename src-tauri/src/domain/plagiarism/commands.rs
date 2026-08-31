@@ -5,18 +5,32 @@ use crate::core::db::DbPool;
 use rusqlite::params;
 use tauri::{AppHandle, Manager, State};
 
+use sha2::{Sha256, Digest};
+use std::fs::File;
+use std::io::Read;
+
+fn hash_file(path: &str) -> Option<String> {
+    let mut file = File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0; 8192];
+    while let Ok(n) = file.read(&mut buffer) {
+        if n == 0 { break; }
+        hasher.update(&buffer[..n]);
+    }
+    Some(format!("{:x}", hasher.finalize()))
+}
+
 /// Resolve the extracted text for every student directory under a coursework's
-/// submissions folder. Returns (student_id, first_file_path, combined_text).
+/// submissions folder. Returns (student_id, first_file_path, combined_text, file_hashes).
 fn collect_submission_texts(
     pool: &DbPool,
     submissions_dir: &std::path::Path,
-) -> Result<Vec<(String, String, String)>, String> {
-    let mut submissions: Vec<(String, String, String)> = Vec::new();
+) -> Result<Vec<(String, String, String, Vec<String>)>, String> {
+    let mut submissions: Vec<(String, String, String, Vec<String>)> = Vec::new();
 
     let entries = std::fs::read_dir(submissions_dir)
         .map_err(|e| format!("Failed to read submissions directory: {}", e))?;
 
-    // Load the whole extraction cache once instead of opening a connection per file.
     let conn = pool.get().map_err(|e| e.to_string())?;
     let cache: std::collections::HashMap<String, String> = {
         let mut stmt = conn
@@ -48,6 +62,7 @@ fn collect_submission_texts(
         };
         let mut combined_text = String::new();
         let mut file_path_used = String::new();
+        let mut file_hashes = Vec::new();
 
         for file_entry in files.flatten() {
             let file_path = file_entry.path();
@@ -55,6 +70,12 @@ fn collect_submission_texts(
                 continue;
             }
             let file_path_str = file_path.to_string_lossy().to_string();
+            
+            // Hash the file
+            if let Some(hash) = hash_file(&file_path_str) {
+                file_hashes.push(hash);
+            }
+
             if file_path_used.is_empty() {
                 file_path_used = file_path_str.clone();
             }
@@ -67,8 +88,8 @@ fn collect_submission_texts(
             }
         }
 
-        if !combined_text.trim().is_empty() {
-            submissions.push((student_id, file_path_used, combined_text));
+        if !combined_text.trim().is_empty() || !file_hashes.is_empty() {
+            submissions.push((student_id, file_path_used, combined_text, file_hashes));
         }
     }
 
@@ -119,7 +140,7 @@ pub async fn compute_plagiarism_report(
     let results = tokio::task::spawn_blocking(move || {
         let tfidf_docs: Vec<(String, String)> = subs
             .iter()
-            .map(|(id, _, text)| (id.clone(), text.clone()))
+            .map(|(id, _, text, _)| (id.clone(), text.clone()))
             .collect();
         let tfidf_results = tfidf::compare_all_tfidf(&tfidf_docs);
         let tfidf_map: std::collections::HashMap<(String, String), f64> = tfidf_results
@@ -130,17 +151,43 @@ pub async fn compute_plagiarism_report(
         let mut pairwise: Vec<PairwiseResult> = Vec::new();
         for i in 0..subs.len() {
             for j in (i + 1)..subs.len() {
-                let (ref id_a, ref file_a, ref text_a) = subs[i];
-                let (ref id_b, ref file_b, ref text_b) = subs[j];
+                let (ref id_a, ref file_a, ref text_a, ref hashes_a) = subs[i];
+                let (ref id_b, ref file_b, ref text_b, ref hashes_b) = subs[j];
 
-                let (fp_score, fragments) = winnowing::compare_winnowing(text_a, text_b);
-                let sem_score = tfidf_map
-                    .get(&(id_a.clone(), id_b.clone()))
-                    .copied()
-                    .unwrap_or(0.0);
+                // Check for identical binary file hashes
+                let mut is_identical_file = false;
+                for h_a in hashes_a {
+                    if hashes_b.contains(h_a) {
+                        is_identical_file = true;
+                        break;
+                    }
+                }
+
+                let mut fp_score = 0.0;
+                let mut sem_score = 0.0;
+                let mut fragments = Vec::new();
+
+                if is_identical_file {
+                    // Force 100% similarity for identical binary files
+                    fp_score = 1.0;
+                    sem_score = 1.0;
+                    fragments.push(super::MatchedFragment {
+                        text_a: "[IDENTICAL BINARY FILE HASH DETECTED]".to_string(),
+                        text_b: "[IDENTICAL BINARY FILE HASH DETECTED]".to_string(),
+                        similarity: 1.0,
+                    });
+                } else {
+                    let (f_score, frags) = winnowing::compare_winnowing(text_a, text_b);
+                    fp_score = f_score;
+                    fragments = frags;
+                    sem_score = tfidf_map
+                        .get(&(id_a.clone(), id_b.clone()))
+                        .copied()
+                        .unwrap_or(0.0);
+                }
 
                 let combined = fp_score * 0.5 + sem_score * 0.5;
-                let flagged = fp_score >= fingerprint_threshold || sem_score >= semantic_threshold;
+                let flagged = is_identical_file || fp_score >= fingerprint_threshold || sem_score >= semantic_threshold;
 
                 let student_a_name = roster
                     .as_ref()
@@ -164,6 +211,7 @@ pub async fn compute_plagiarism_report(
                     semantic_score: (sem_score * 100.0).round() / 100.0,
                     combined_score: (combined * 100.0).round() / 100.0,
                     flagged,
+                    is_identical_file,
                     matched_fragments: fragments,
                 });
             }

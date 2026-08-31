@@ -54,6 +54,11 @@ export function ClusterView({ clusters, expandedRows, toggleRow, clusterStudents
                         <span className="font-medium truncate">{result.student_a_name}</span>
                         <span className="text-muted-foreground shrink-0">↔</span>
                         <span className="font-medium truncate">{result.student_b_name}</span>
+                        {result.is_identical_file && (
+                          <span className="ml-2 inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-400/10 dark:text-red-400 dark:ring-red-400/20">
+                            Identical File
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <span className="text-xs text-muted-foreground">

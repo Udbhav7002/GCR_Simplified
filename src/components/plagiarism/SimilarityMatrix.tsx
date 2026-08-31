@@ -60,7 +60,7 @@ export function SimilarityMatrix({ report, expandedRows, toggleRow, getScoreColo
                   <TableCell>
                     {result.flagged ? (
                       <Badge variant="destructive" className="gap-1">
-                        <AlertTriangle className="w-3 h-3" /> Flagged
+                        <AlertTriangle className="w-3 h-3" /> {result.is_identical_file ? "Identical File" : "Flagged"}
                       </Badge>
                     ) : result.combined_score >= report.fingerprint_threshold ? (
                       <Badge variant="secondary" className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 gap-1 border-yellow-200 dark:border-yellow-900/50">

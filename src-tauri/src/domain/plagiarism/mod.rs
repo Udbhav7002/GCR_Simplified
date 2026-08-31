@@ -16,6 +16,7 @@ pub struct PairwiseResult {
     pub semantic_score: f64,
     pub combined_score: f64,
     pub flagged: bool,
+    pub is_identical_file: bool,
     pub matched_fragments: Vec<MatchedFragment>,
 }
 

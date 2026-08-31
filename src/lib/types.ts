@@ -133,6 +133,7 @@ export interface PairwiseResult {
   semantic_score: number;
   combined_score: number;
   flagged: boolean;
+  is_identical_file: boolean;
   matched_fragments: MatchedFragment[];
 }
 
