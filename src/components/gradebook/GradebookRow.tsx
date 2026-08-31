@@ -71,10 +71,15 @@ export const GradebookRow = memo(function GradebookRow({
       <TableCell>
         <div>
           <p className="font-medium text-sm">{row.student_name}</p>
-          {row.student_email && <p className="text-xs text-muted-foreground">{row.student_email}</p>}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+            {row.roll_number && !row.roll_number.match(/^1[0-9]{20}$/) && (
+              <span className="font-mono bg-muted/50 px-1 py-0.5 rounded">{row.roll_number}</span>
+            )}
+            {row.student_email && <span>{row.student_email}</span>}
+          </div>
           {(row.file_reg_no || row.file_name_hint) && (
-            <p className="text-xs text-muted-foreground italic" title="Identity parsed from the uploaded filename">
-              file: {row.file_name_hint ?? "?"}
+            <p className="text-xs text-muted-foreground italic mt-0.5" title="Identity parsed from the uploaded filename">
+              📄 {row.file_name_hint ?? "?"}
               {row.file_reg_no ? ` · ${row.file_reg_no}` : ""}
             </p>
           )}

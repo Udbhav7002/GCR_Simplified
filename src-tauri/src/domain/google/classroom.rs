@@ -430,18 +430,31 @@ pub async fn mirror_submissions_to_db(
     .map_err(|e| e.to_string())?;
 
     for sub in submissions {
-        let name = sub
+        let mut name = sub
             .student_name
             .clone()
             .unwrap_or_else(|| "Unknown Student".to_string());
+            
+        let mut roll_number = sub.user_id.clone();
+        
+        // Extract Registration Number from parentheses e.g. "SANAGARI UDBHAV (RA2511026010418)"
+        if let Some(start) = name.rfind('(') {
+            if let Some(end) = name.rfind(')') {
+                if start < end {
+                    roll_number = name[start + 1..end].trim().to_string();
+                    name = name[..start].trim().to_string();
+                }
+            }
+        }
+        
         tx.execute(
             "INSERT INTO students (id, class_id, roll_number, name, email, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email",
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email, roll_number = excluded.roll_number",
             rusqlite::params![
                 sub.user_id,
                 course_id,
-                sub.user_id,
+                roll_number,
                 name,
                 sub.student_email,
                 now
