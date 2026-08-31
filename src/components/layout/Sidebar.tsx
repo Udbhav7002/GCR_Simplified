@@ -50,13 +50,7 @@ export function Sidebar() {
     setSupportOpen(false);
   };
 
-  const handleEmailAccess = () => {
-    const mailto = `mailto:sanagariudbhav@gmail.com?subject=GCR%20Simplified%20Access%20Request`;
-    openUrl(mailto).catch(() => window.open(mailto, "_blank"));
-    setSupportOpen(false);
-  };
-
-  return (
+    return (
     <aside id="tour-sidebar" className="flex flex-col w-64 border-r border-border bg-card h-screen sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -129,10 +123,13 @@ export function Sidebar() {
                 <p className="text-sm text-muted-foreground">
                   GCR Simplified requires beta access. Send an email to request access or ask general questions.
                 </p>
-                <Button onClick={handleEmailAccess} className="w-full justify-start gap-2">
+                <a 
+                  href="mailto:sanagariudbhav@gmail.com?subject=GCR%20Simplified%20Access%20Request"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full justify-start"
+                >
                   <Mail className="w-4 h-4" />
                   Email sanagariudbhav@gmail.com
-                </Button>
+                </a>
               </div>
               <Separator />
               <div className="flex flex-col gap-2">
