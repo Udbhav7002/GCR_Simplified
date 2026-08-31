@@ -4,23 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  GraduationCap,
-  ShieldCheck,
-  ArrowRight,
-  CheckCircle2,
-  Loader2,
-  KeyRound,
-  ExternalLink,
-} from "lucide-react";
+import { GraduationCap, ShieldCheck, ArrowRight, CheckCircle2, Loader2, KeyRound, ExternalLink } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-  startGoogleLogin,
-  cancelGoogleLogin,
-  getGoogleAuthStatus,
-  getSettings,
-  saveSettings,
-} from "@/lib/ipc";
+import { startGoogleLogin, cancelGoogleLogin, getGoogleAuthStatus, getSettings, saveSettings } from "@/lib/ipc";
 import { dismissOnboarding } from "@/lib/onboarding";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GoogleAuthStatus, AppSettings } from "@/lib/types";

@@ -53,7 +53,9 @@ export function GradeOverrideDialog({
               </p>
             </div>
             <div className="space-y-2">
-              <label htmlFor="override-score" className="text-sm font-medium">Score</label>
+              <label htmlFor="override-score" className="text-sm font-medium">
+                Score
+              </label>
               <Input
                 id="override-score"
                 type="number"
@@ -65,7 +67,9 @@ export function GradeOverrideDialog({
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="override-feedback" className="text-sm font-medium">Teacher Feedback</label>
+              <label htmlFor="override-feedback" className="text-sm font-medium">
+                Teacher Feedback
+              </label>
               <Input
                 id="override-feedback"
                 placeholder="Optional feedback to the student..."

@@ -60,8 +60,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /// Convert an unknown error into a short, friendly message.
 export function friendlyError(err: unknown): string {
-  const raw =
-    typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
+  const raw = typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
   if (
     lower.includes("has not completed the google verification") ||

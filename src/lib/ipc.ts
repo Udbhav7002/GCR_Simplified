@@ -94,7 +94,6 @@ export async function getMissingSubmissions(courseId: string, courseWorkId: stri
   return invoke<MissingStudent[]>("get_missing_submissions", { courseId, courseWorkId });
 }
 
-
 export async function downloadSubmissionFile(params: {
   fileId: string;
   fileName: string;
@@ -203,7 +202,7 @@ export async function exportGradebook(params: {
       course_id: params.courseId ?? null,
       course_work_id: params.courseWorkId ?? null,
       save_path: params.savePath ?? null,
-    }
+    },
   });
 }
 
@@ -230,4 +229,3 @@ export async function backupDatabase(destPath: string): Promise<string> {
 export async function restoreDatabase(sourcePath: string): Promise<string> {
   return invoke<string>("restore_database", { sourcePath });
 }
-

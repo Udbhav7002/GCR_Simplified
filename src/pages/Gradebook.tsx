@@ -12,14 +12,23 @@ import {
   createRubricCriterion,
   deleteRubricCriterion,
   cancelActiveTasks,
-  
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  RefreshCw,
+  Loader2,
+  AlertTriangle,
+  Shield,
+  Brain,
+  FileSpreadsheet,
+  Plus,
+} from "lucide-react";
 
 import { GradingProgressBar } from "@/components/gradebook/GradingProgressBar";
 import { GradebookTable } from "@/components/gradebook/GradebookTable";
@@ -95,19 +104,19 @@ export function Gradebook() {
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
           return;
         }
         e.preventDefault();
-        
+
         const action = undo();
         if (action) {
           try {
-            await updateGradeOverride({ 
-              grade_id: action.gradeId, 
-              teacher_score: action.previousScore ?? 0, 
-              teacher_feedback: action.previousFeedback ?? undefined 
+            await updateGradeOverride({
+              grade_id: action.gradeId,
+              teacher_score: action.previousScore ?? 0,
+              teacher_feedback: action.previousFeedback ?? undefined,
             });
             await fetchGradebook();
             toast("Override undone", "success");
@@ -118,9 +127,9 @@ export function Gradebook() {
         }
       }
     };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [undo, fetchGradebook, toast]);
 
   const handleAddCriterion = async () => {
@@ -251,9 +260,6 @@ export function Gradebook() {
     }
   };
 
-
-  
-
   const handleEditGrade = useCallback((grade: Grade, row: GradebookRow) => {
     setOverrideScore(grade.score?.toString() ?? "");
     setOverrideFeedback(grade.feedback ?? "");
@@ -266,12 +272,12 @@ export function Gradebook() {
       const previousFeedback = editingGrade?.grade.feedback ?? null;
 
       await updateGradeOverride({ grade_id: gradeId, teacher_score: teacherScore, teacher_feedback: teacherFeedback });
-      
+
       push({
         gradeId,
         previousScore,
         previousFeedback,
-        newScore: teacherScore
+        newScore: teacherScore,
       });
 
       setEditingGrade(null);
@@ -317,7 +323,7 @@ export function Gradebook() {
         handleSaveOverride(editingGrade.grade.id, score, overrideFeedback.trim() || undefined);
       }
     },
-    "Escape": (e) => {
+    Escape: (e) => {
       if (editingGrade) {
         e.preventDefault();
         setEditingGrade(null);
@@ -360,8 +366,8 @@ export function Gradebook() {
   const approvedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter((g) => g.approved).length, 0);
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="p-8 max-w-7xl mx-auto space-y-6"
     >
@@ -386,7 +392,10 @@ export function Gradebook() {
                 Course Details
               </Link>
               <ChevronRight className="w-4 h-4" />
-              <Link to={`/courses/${courseId}/assignments/${courseWorkId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+              <Link
+                to={`/courses/${courseId}/assignments/${courseWorkId}`}
+                className="hover:text-foreground transition-colors whitespace-nowrap"
+              >
                 Submissions
               </Link>
             </div>
@@ -425,7 +434,13 @@ export function Gradebook() {
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={handleExport} disabled={loading || exporting} variant="outline" size="sm" className="gap-2">
+            <Button
+              onClick={handleExport}
+              disabled={loading || exporting}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
               {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               {exporting ? "Exporting..." : "Export"}
             </Button>
@@ -541,10 +556,6 @@ export function Gradebook() {
         onClose={() => setEditingGrade(null)}
         onSave={handleSaveOverride}
       />
-
-
-
-
     </motion.div>
   );
 }

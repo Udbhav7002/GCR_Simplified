@@ -18,10 +18,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap, active = true) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      const isInput =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 
       const parts = [];
       if (e.metaKey || e.ctrlKey) parts.push("Cmd");
@@ -45,11 +42,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap, active = true) {
       const handler = shortcutsRef.current[shortcutKey];
 
       if (handler) {
-        if (
-          isInput &&
-          shortcutKey !== "Cmd+Enter" &&
-          shortcutKey !== "Escape"
-        ) {
+        if (isInput && shortcutKey !== "Cmd+Enter" && shortcutKey !== "Escape") {
           return;
         }
 

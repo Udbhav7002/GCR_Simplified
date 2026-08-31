@@ -98,13 +98,16 @@ function AppLayout() {
         if (cancelled) return;
 
         if (update && update.available) {
-          const yes = await ask(`Update to ${update.version} is available!\n\nRelease notes: ${update.body}\n\nDo you want to install it now?`, { 
-            title: "Update Available", 
-            kind: "info",
-            okLabel: "Update Now",
-            cancelLabel: "Later"
-          });
-          
+          const yes = await ask(
+            `Update to ${update.version} is available!\n\nRelease notes: ${update.body}\n\nDo you want to install it now?`,
+            {
+              title: "Update Available",
+              kind: "info",
+              okLabel: "Update Now",
+              cancelLabel: "Later",
+            }
+          );
+
           if (yes) {
             await update.downloadAndInstall();
             await relaunch();

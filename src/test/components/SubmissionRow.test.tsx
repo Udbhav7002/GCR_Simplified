@@ -25,9 +25,9 @@ describe("SubmissionRow", () => {
     attachments: [
       {
         drive_file_id: "file1",
-        drive_file_title: "assignment.pdf"
-      }
-    ]
+        drive_file_title: "assignment.pdf",
+      },
+    ],
   };
 
   it("renders submission details, status badge, and calls onDownload", () => {

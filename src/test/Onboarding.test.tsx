@@ -72,9 +72,7 @@ describe("Onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: /save key/i }));
 
     await waitFor(() => {
-      expect(ipc.saveSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ gemini_api_key: "AIzaTest" })
-      );
+      expect(ipc.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ gemini_api_key: "AIzaTest" }));
       expect(screen.getByText("Saved")).toBeInTheDocument();
     });
   });

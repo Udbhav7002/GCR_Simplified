@@ -49,9 +49,9 @@ export function Dashboard() {
       {/* Welcome Banner */}
       {showBanner && (
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground p-8">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="absolute top-2 right-2 text-primary-foreground/80 hover:bg-white/20 hover:text-white z-20"
             onClick={dismissBanner}
             title="Dismiss"
@@ -65,7 +65,14 @@ export function Dashboard() {
               start grading.
             </p>
             <div className="flex gap-3 mt-5">
-              <Button variant="secondary" className="gap-2" onClick={() => { dismissBanner(); navigate("/courses"); }}>
+              <Button
+                variant="secondary"
+                className="gap-2"
+                onClick={() => {
+                  dismissBanner();
+                  navigate("/courses");
+                }}
+              >
                 <BookOpen className="w-4 h-4" />
                 View Courses
               </Button>

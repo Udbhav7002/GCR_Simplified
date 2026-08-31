@@ -5,12 +5,12 @@ import { friendlyError } from "@/components/ui/toaster";
 import type { MissingStudent } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users, } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function MissingSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
-  
+
   const [missingStudents, setMissingStudents] = useState<MissingStudent[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [submittedCount, setSubmittedCount] = useState(0);
@@ -43,7 +43,6 @@ export function MissingSubmissions() {
   useEffect(() => {
     fetchMissing();
   }, [fetchMissing]);
-
 
   if (error) {
     return (

@@ -16,7 +16,10 @@ const getStatusBadge = (status: string) => {
       );
     case "ungraded":
       return (
-        <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
+        <Badge
+          variant="secondary"
+          className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20"
+        >
           Ungraded
         </Badge>
       );

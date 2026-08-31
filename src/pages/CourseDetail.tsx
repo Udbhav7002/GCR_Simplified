@@ -184,8 +184,12 @@ export function CourseDetail() {
                 {loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={`skeleton-student-${i}`} className="animate-pulse">
-                      <TableCell><div className="h-4 bg-muted rounded w-32"></div></TableCell>
-                      <TableCell><div className="h-4 bg-muted rounded w-48"></div></TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-muted rounded w-32"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-muted rounded w-48"></div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : students.length === 0 ? (
@@ -197,7 +201,9 @@ export function CourseDetail() {
                         </div>
                         <div>
                           <p className="text-lg font-medium">No students enrolled</p>
-                          <p className="text-sm text-muted-foreground mt-1">There are no students enrolled in this course.</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            There are no students enrolled in this course.
+                          </p>
                         </div>
                       </div>
                     </TableCell>

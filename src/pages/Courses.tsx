@@ -106,8 +106,8 @@ export function Courses() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <Card 
-              key={course.id} 
+            <Card
+              key={course.id}
               className="hover:border-primary/50 transition-colors flex flex-col cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`/courses/${course.id}`)}
             >
@@ -132,7 +132,12 @@ export function Courses() {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <Button render={<Link to={`/courses/${course.id}`} />} className="flex-1 gap-2" variant="default" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    render={<Link to={`/courses/${course.id}`} />}
+                    className="flex-1 gap-2"
+                    variant="default"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <BookOpen className="w-4 h-4" />
                     View Details
                   </Button>
@@ -140,9 +145,7 @@ export function Courses() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (course.alternate_link) {
-                        openUrl(course.alternate_link).catch(() =>
-                          window.open(course.alternate_link, "_blank")
-                        );
+                        openUrl(course.alternate_link).catch(() => window.open(course.alternate_link, "_blank"));
                       }
                     }}
                     size="icon"

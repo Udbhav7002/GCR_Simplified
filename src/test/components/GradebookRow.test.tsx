@@ -14,7 +14,7 @@ const renderInTable = (ui: React.ReactElement) => {
 
 describe("GradebookRow", () => {
   const mockRubric: GradebookView["rubric"] = [
-    { id: "c1", assignment_id: "a1", name: "Grammar", description: "", max_marks: 10, sort_order: 1 }
+    { id: "c1", assignment_id: "a1", name: "Grammar", description: "", max_marks: 10, sort_order: 1 },
   ];
 
   const mockRow: GradebookRowType = {
@@ -39,9 +39,9 @@ describe("GradebookRow", () => {
         justification: null,
         graded_by: "teacher",
         approved: true,
-        graded_at: "2024-01-01T00:00:00Z"
-      }
-    ]
+        graded_at: "2024-01-01T00:00:00Z",
+      },
+    ],
   };
 
   it("renders student name, grades, and edit button", () => {
@@ -49,12 +49,7 @@ describe("GradebookRow", () => {
     const onApproveGrade = vi.fn();
 
     renderInTable(
-      <GradebookRow 
-        row={mockRow} 
-        rubric={mockRubric} 
-        onEditGrade={onEditGrade} 
-        onApproveGrade={onApproveGrade} 
-      />
+      <GradebookRow row={mockRow} rubric={mockRubric} onEditGrade={onEditGrade} onApproveGrade={onApproveGrade} />
     );
 
     // Should render name

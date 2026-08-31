@@ -151,7 +151,6 @@ export function Settings() {
     }
   };
 
-
   const handleBackup = async () => {
     try {
       const destPath = await save({
@@ -394,7 +393,9 @@ export function Settings() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="gemini-model" className="text-sm font-medium">Model</label>
+            <label htmlFor="gemini-model" className="text-sm font-medium">
+              Model
+            </label>
             <Select value={geminiModel} onValueChange={(v) => v && setGeminiModel(v)}>
               <SelectTrigger id="gemini-model" className="w-full">
                 <SelectValue />
@@ -422,23 +423,26 @@ export function Settings() {
           </div>
         </CardHeader>
         <CardContent>
-          <Select value={theme} onValueChange={(val) => {
-            if (!val) return;
-            const themeVal = val as "light" | "dark" | "system";
-            setTheme(themeVal);
-            if (themeVal === "dark") {
-              document.documentElement.classList.add("dark");
-            } else if (themeVal === "light") {
-              document.documentElement.classList.remove("dark");
-            } else {
-              if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          <Select
+            value={theme}
+            onValueChange={(val) => {
+              if (!val) return;
+              const themeVal = val as "light" | "dark" | "system";
+              setTheme(themeVal);
+              if (themeVal === "dark") {
                 document.documentElement.classList.add("dark");
-              } else {
+              } else if (themeVal === "light") {
                 document.documentElement.classList.remove("dark");
+              } else {
+                if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                  document.documentElement.classList.add("dark");
+                } else {
+                  document.documentElement.classList.remove("dark");
+                }
               }
-            }
-            saveSettings({ theme: themeVal }).catch(console.error);
-          }}>
+              saveSettings({ theme: themeVal }).catch(console.error);
+            }}
+          >
             <SelectTrigger aria-label="Theme" className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -467,7 +471,9 @@ export function Settings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="fingerprint-threshold" className="text-sm font-medium">Fingerprint Threshold (%)</label>
+              <label htmlFor="fingerprint-threshold" className="text-sm font-medium">
+                Fingerprint Threshold (%)
+              </label>
               <Input
                 id="fingerprint-threshold"
                 type="number"
@@ -479,7 +485,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Exact text matching via Winnowing (default 40%)</p>
             </div>
             <div className="space-y-2">
-              <label htmlFor="semantic-threshold" className="text-sm font-medium">Semantic Threshold (%)</label>
+              <label htmlFor="semantic-threshold" className="text-sm font-medium">
+                Semantic Threshold (%)
+              </label>
               <Input
                 id="semantic-threshold"
                 type="number"
@@ -510,7 +518,9 @@ export function Settings() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label htmlFor="download-concurrency" className="text-sm font-medium">Downloads</label>
+              <label htmlFor="download-concurrency" className="text-sm font-medium">
+                Downloads
+              </label>
               <Input
                 id="download-concurrency"
                 type="number"
@@ -522,7 +532,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Drive downloads (1–16)</p>
             </div>
             <div className="space-y-2">
-              <label htmlFor="extraction-concurrency" className="text-sm font-medium">Text Extraction</label>
+              <label htmlFor="extraction-concurrency" className="text-sm font-medium">
+                Text Extraction
+              </label>
               <Input
                 id="extraction-concurrency"
                 type="number"
@@ -534,7 +546,9 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">PDF/Docx parsers (1–16)</p>
             </div>
             <div className="space-y-2">
-              <label htmlFor="grading-concurrency" className="text-sm font-medium">AI Grading</label>
+              <label htmlFor="grading-concurrency" className="text-sm font-medium">
+                AI Grading
+              </label>
               <Input
                 id="grading-concurrency"
                 type="number"
@@ -597,14 +611,24 @@ export function Settings() {
               <Trash2 className="w-4 h-4" />
               Purge Downloaded Files
             </Button>
-            <Button onClick={handlePurgePlagiarismHistory} disabled={maintaining} variant="destructive" className="gap-2">
+            <Button
+              onClick={handlePurgePlagiarismHistory}
+              disabled={maintaining}
+              variant="destructive"
+              className="gap-2"
+            >
               <Trash2 className="w-4 h-4" />
               Clean Plagiarism History
             </Button>
-            <Button onClick={() => {
-              localStorage.removeItem("gcr_tour_completed");
-              window.location.href = "/";
-            }} disabled={maintaining} variant="outline" className="gap-2">
+            <Button
+              onClick={() => {
+                localStorage.removeItem("gcr_tour_completed");
+                window.location.href = "/";
+              }}
+              disabled={maintaining}
+              variant="outline"
+              className="gap-2"
+            >
               <RotateCcw className="w-4 h-4" />
               Reset Tour
             </Button>

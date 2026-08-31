@@ -81,7 +81,10 @@ export const SubmissionRow = memo(function SubmissionRow({
           if (extractionResult) {
             if (extractionResult.extraction_method === "skipped") {
               return (
-                <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5">
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5"
+                >
                   Scanned – skipped
                 </Badge>
               );
@@ -89,7 +92,10 @@ export const SubmissionRow = memo(function SubmissionRow({
             if (extractionResult.success) {
               return (
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                  <Badge
+                    variant="outline"
+                    className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                  >
                     ✓ {extractionResult.char_count} chars
                   </Badge>
                   <Button

@@ -36,12 +36,24 @@ export function SubmissionTable({
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <TableRow key={`skeleton-${i}`} className="animate-pulse">
-              <TableCell><div className="h-4 bg-muted rounded w-24"></div></TableCell>
-              <TableCell><div className="h-4 bg-muted rounded w-16"></div></TableCell>
-              <TableCell><div className="h-4 bg-muted rounded w-12"></div></TableCell>
-              <TableCell><div className="h-4 bg-muted rounded w-16"></div></TableCell>
-              <TableCell><div className="h-4 bg-muted rounded w-32"></div></TableCell>
-              <TableCell className="text-right"><div className="h-8 bg-muted rounded w-8 ml-auto"></div></TableCell>
+              <TableCell>
+                <div className="h-4 bg-muted rounded w-24"></div>
+              </TableCell>
+              <TableCell>
+                <div className="h-4 bg-muted rounded w-16"></div>
+              </TableCell>
+              <TableCell>
+                <div className="h-4 bg-muted rounded w-12"></div>
+              </TableCell>
+              <TableCell>
+                <div className="h-4 bg-muted rounded w-16"></div>
+              </TableCell>
+              <TableCell>
+                <div className="h-4 bg-muted rounded w-32"></div>
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="h-8 bg-muted rounded w-8 ml-auto"></div>
+              </TableCell>
             </TableRow>
           ))
         ) : submissions.length === 0 ? (
@@ -53,7 +65,9 @@ export function SubmissionTable({
                 </div>
                 <div>
                   <p className="text-lg font-medium">No submissions found</p>
-                  <p className="text-sm text-muted-foreground mt-1">There are no student submissions for this assignment yet.</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    There are no student submissions for this assignment yet.
+                  </p>
                 </div>
               </div>
             </TableCell>
