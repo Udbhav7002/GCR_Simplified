@@ -15,15 +15,12 @@ pub struct IntegrityRow {
 }
 
 /// Cell formats shared by all four sheets.
-#[allow(dead_code)]
 struct SheetFormats {
     header: Format,
     title: Format,
     normal: Format,
     num: Format,
     text: Format,
-    green: Format,
-    amber: Format,
     red: Format,
 }
 
@@ -45,16 +42,6 @@ fn make_formats() -> SheetFormats {
             .set_align(FormatAlign::Center)
             .set_border(FormatBorder::Thin),
         text: Format::new().set_text_wrap().set_border(FormatBorder::Thin),
-        green: Format::new()
-            .set_background_color(Color::RGB(0xC6EFCE))
-            .set_font_color(Color::RGB(0x006100))
-            .set_align(FormatAlign::Center)
-            .set_border(FormatBorder::Thin),
-        amber: Format::new()
-            .set_background_color(Color::RGB(0xFFEB9C))
-            .set_font_color(Color::RGB(0x9C6500))
-            .set_align(FormatAlign::Center)
-            .set_border(FormatBorder::Thin),
         red: Format::new()
             .set_background_color(Color::RGB(0xFFC7CE))
             .set_font_color(Color::RGB(0x9C0006))
@@ -65,13 +52,16 @@ fn make_formats() -> SheetFormats {
 
 pub fn export_gradebook_xlsx(
     gradebook: &GradebookView,
-    _integrity: &[IntegrityRow],
+    integrity: &[IntegrityRow],
     save_path: &Path,
 ) -> Result<String, String> {
     let mut workbook = Workbook::new();
     let fmt = make_formats();
 
+    write_summary_sheet(&mut workbook, gradebook, &fmt).map_err(|e| e.to_string())?;
     write_simple_grade_sheet(&mut workbook, gradebook, &fmt).map_err(|e| e.to_string())?;
+    write_integrity_sheet(&mut workbook, integrity, &fmt).map_err(|e| e.to_string())?;
+    write_feedback_sheet(&mut workbook, gradebook, &fmt).map_err(|e| e.to_string())?;
 
     workbook
         .save(save_path)
@@ -80,7 +70,6 @@ pub fn export_gradebook_xlsx(
     Ok(save_path.to_string_lossy().to_string())
 }
 
-#[allow(dead_code)]
 fn write_summary_sheet(
     workbook: &mut Workbook,
     gradebook: &GradebookView,
@@ -171,7 +160,7 @@ fn write_simple_grade_sheet(
     fmt: &SheetFormats,
 ) -> Result<(), XlsxError> {
     let sheet = workbook.add_worksheet();
-    sheet.set_name("Grades")?;
+    sheet.set_name("Grade Sheet")?;
     sheet.set_column_width(0, 35)?;
     sheet.set_column_width(1, 20)?;
     sheet.set_column_width(2, 15)?;
@@ -205,7 +194,6 @@ fn write_simple_grade_sheet(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn write_integrity_sheet(
     workbook: &mut Workbook,
     integrity: &[IntegrityRow],
@@ -256,7 +244,6 @@ fn write_integrity_sheet(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn write_feedback_sheet(
     workbook: &mut Workbook,
     gradebook: &GradebookView,
