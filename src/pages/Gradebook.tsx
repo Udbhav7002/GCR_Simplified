@@ -352,7 +352,7 @@ export function Gradebook() {
   }
 
   const totalStudents = gradebook.rows.length;
-  const gradedCount = gradebook.rows.filter((r) => r.grading_status === "graded").length;
+  const gradedCount = gradebook.rows.filter((r) => r.grading_status === "graded" && r.grades.length > 0).length;
   const suggestedCount = gradebook.rows.reduce(
     (acc, r) => acc + r.grades.filter((g) => g.graded_by === "ai" && !g.approved).length,
     0
