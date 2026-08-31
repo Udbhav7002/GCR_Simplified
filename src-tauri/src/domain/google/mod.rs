@@ -284,6 +284,8 @@ pub async fn get_valid_access_token(pool: &DbPool) -> Result<String, String> {
         .map_err(|e| format!("Token refresh request failed: {}", e))?;
 
     if !resp.status().is_success() {
+        let _ = security::delete_secret(pool, "google_access_token");
+        let _ = security::delete_secret(pool, "google_refresh_token");
         return Err(handle_http_error(resp, "Token refresh").await);
     }
 

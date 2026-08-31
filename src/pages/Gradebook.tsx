@@ -12,6 +12,8 @@ import {
   createRubricCriterion,
   deleteRubricCriterion,
   cancelActiveTasks,
+  downloadAllSubmissions,
+  extractAllSubmissions,
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
@@ -178,10 +180,15 @@ export function Gradebook() {
   };
 
   const handleGradeAll = async () => {
-    if (!assignmentId) return;
+    if (!assignmentId || !courseId || !courseWorkId) return;
     try {
       setGradingAll(true);
       setProgress(null);
+      
+      toast("Downloading and extracting latest student files...", "info");
+      await downloadAllSubmissions(courseId, courseWorkId);
+      await extractAllSubmissions(courseId, courseWorkId);
+
       const result = await gradeAllAssignment(assignmentId);
       if (result.failed > 0) {
         toast(

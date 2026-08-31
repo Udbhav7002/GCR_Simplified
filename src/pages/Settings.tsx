@@ -25,7 +25,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   startGoogleLogin,
   cancelGoogleLogin,
-  getGoogleAuthStatus,
+  getGoogleAuthStatus, googleLogout,
   googleLogout,
   getSettings,
   saveSettings,
@@ -84,12 +84,12 @@ export function Settings() {
   const handleGoogleConnect = async () => {
     try {
       setLoginLoading(true);
-      const status = await startGoogleLogin();
-      setAuthStatus(status);
-      toast("Connected to Google Classroom", "success");
+      const res = await startGoogleLogin();
+      setAuthStatus(res);
+      toast("Successfully connected to Google Classroom", "success");
     } catch (err) {
       console.error(err);
-      toast("Failed to connect to Google Classroom: " + friendlyError(err), "error");
+      toast("Google login failed: " + friendlyError(err), "error");
     } finally {
       setLoginLoading(false);
     }
@@ -112,6 +112,21 @@ export function Settings() {
     } catch (err) {
       console.error(err);
       toast("Failed to disconnect: " + friendlyError(err), "error");
+    }
+  };
+
+  
+  const handleGoogleDisconnect = async () => {
+    try {
+      setLoginLoading(true);
+      await googleLogout();
+      setAuthStatus({ is_authenticated: false });
+      toast("Successfully disconnected from Google Classroom", "success");
+    } catch (err) {
+      console.error(err);
+      toast("Failed to disconnect: " + friendlyError(err), "error");
+    } finally {
+      setLoginLoading(false);
     }
   };
 
