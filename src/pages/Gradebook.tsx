@@ -12,16 +12,14 @@ import {
   createRubricCriterion,
   deleteRubricCriterion,
   cancelActiveTasks,
-  pushGradesToClassroom,
   
 } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GradebookView, Grade, GradebookRow, GradingProgressPayload } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus, UploadCloud } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, Loader2, AlertTriangle, Shield, Brain, FileSpreadsheet, Plus } from "lucide-react";
 
 import { GradingProgressBar } from "@/components/gradebook/GradingProgressBar";
 import { GradebookTable } from "@/components/gradebook/GradebookTable";
@@ -56,8 +54,6 @@ export function Gradebook() {
   const [newCriterionName, setNewCriterionName] = useState("");
   const [newCriterionMax, setNewCriterionMax] = useState("10");
   const [savingCriterion, setSavingCriterion] = useState(false);
-  const [pushingToClassroom, setPushingToClassroom] = useState(false);
-  const [confirmPush, setConfirmPush] = useState(false);
   const { push, undo } = useUndoStack<GradeOverrideAction>();
 
   const gradingUnlistenRef = useRef<(() => void) | null>(null);
@@ -255,21 +251,6 @@ export function Gradebook() {
     }
   };
 
-  const handlePushToClassroom = async () => {
-    if (!assignmentId || !courseId || !courseWorkId) return;
-    setConfirmPush(false);
-    
-    try {
-      setPushingToClassroom(true);
-      const pushedCount = await pushGradesToClassroom(assignmentId, courseId, courseWorkId);
-      toast(`Successfully pushed ${pushedCount} grades to Classroom`, "success");
-    } catch (err: unknown) {
-      console.error(err);
-      toast("Failed to push grades: " + friendlyError(err), "error");
-    } finally {
-      setPushingToClassroom(false);
-    }
-  };
 
   
 
@@ -448,10 +429,6 @@ export function Gradebook() {
               {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               {exporting ? "Exporting..." : "Export"}
             </Button>
-            <Button onClick={() => setConfirmPush(true)} disabled={loading || pushingToClassroom || approvedCount === 0} variant="outline" size="sm" className="gap-2">
-              {pushingToClassroom ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-              {pushingToClassroom ? "Pushing..." : "Push to Classroom"}
-            </Button>
           </div>
         </div>
       </div>
@@ -565,24 +542,7 @@ export function Gradebook() {
         onSave={handleSaveOverride}
       />
 
-      <Dialog open={confirmPush} onOpenChange={setConfirmPush}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Push Grades to Classroom</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to push all approved grades to Google Classroom?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmPush(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePushToClassroom}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
 
     </motion.div>
