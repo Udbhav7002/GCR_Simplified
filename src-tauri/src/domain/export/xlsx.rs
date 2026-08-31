@@ -173,10 +173,14 @@ fn write_simple_grade_sheet(
 
     for (row, gradebook_row) in (2..).zip(gradebook.rows.iter()) {
         sheet.write_string_with_format(row, 0, &gradebook_row.student_name, &fmt.normal)?;
-        let reg_no = gradebook_row
-            .file_reg_no
-            .clone()
-            .unwrap_or_else(|| "-".to_string());
+        // If roll_number is not a 21-digit Google ID, it's the actual Reg No!
+        let mut reg_no = gradebook_row.roll_number.clone();
+        if reg_no.len() >= 20 && reg_no.chars().all(char::is_numeric) {
+            reg_no = gradebook_row
+                .file_reg_no
+                .clone()
+                .unwrap_or_else(|| "-".to_string());
+        }
         sheet.write_string_with_format(row, 1, &reg_no, &fmt.normal)?;
 
         let mut total = 0.0_f64;
