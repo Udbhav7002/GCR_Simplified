@@ -13,7 +13,7 @@ const MAX_INPUT_CHARS: usize = 32_000;
 const DEFAULT_TIMEOUT_SECS: u64 = 120;
 
 /// Maximum number of retry attempts for transient failures.
-const MAX_RETRIES: u32 = 3;
+const MAX_RETRIES: u32 = 6;
 
 /// Base delay for exponential backoff (milliseconds).
 const BASE_RETRY_DELAY_MS: u64 = 800;
@@ -366,11 +366,14 @@ Be fair, consistent, and specific in your justifications."#
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     if attempt < self.max_retries - 1 && is_retryable(&e) {
-                        last_err = Some(e);
-                        let base_delay = BASE_RETRY_DELAY_MS * 2_u64.pow(attempt);
-                        let jitter = rand::random::<u64>() % 201;
-                        let delay = base_delay + jitter;
-                        tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                        last_err = Some(e.clone());
+                        let mut delay = BASE_RETRY_DELAY_MS * 2_u64.pow(attempt);
+                        if e.contains("429") || e.contains("rate limit") {
+                            // On rate limit, delay much longer to let the 1-minute quota reset.
+                            delay = 15_000 + (attempt as u64 * 5_000);
+                        }
+                        let jitter = rand::random::<u64>() % 501;
+                        tokio::time::sleep(std::time::Duration::from_millis(delay + jitter)).await;
                     } else {
                         return Err(e);
                     }
