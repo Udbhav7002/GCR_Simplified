@@ -607,6 +607,7 @@ pub async fn grade_all_assignment(
         let cancel = cancel_flag.0.clone();
         let app_handle = app.clone();
         let counter = progress_counter.clone();
+        let grading_delay = settings.grading_delay_seconds;
 
         let handle = tokio::spawn(async move {
             if cancel.is_cancelled() {
@@ -787,6 +788,9 @@ pub async fn grade_all_assignment(
                 )
                 .collect();
 
+            if grading_delay > 0 {
+                tokio::time::sleep(std::time::Duration::from_secs(grading_delay)).await;
+            }
             Ok(GradeSubmissionResult {
                 submission_id: submission_id_clone,
                 grades,

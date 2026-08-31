@@ -50,6 +50,7 @@ export function Settings() {
   const [downloadConcurrency, setDownloadConcurrency] = useState("4");
   const [extractionConcurrency, setExtractionConcurrency] = useState("4");
   const [gradingConcurrency, setGradingConcurrency] = useState("3");
+  const [gradingDelay, setGradingDelay] = useState("0");
   const [showApiKey, setShowApiKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,7 @@ export function Settings() {
         setDownloadConcurrency((settings.download_concurrency ?? 4).toString());
         setExtractionConcurrency((settings.extraction_concurrency ?? 4).toString());
         setGradingConcurrency((settings.grading_concurrency ?? 3).toString());
+        setGradingDelay((settings.grading_delay_seconds ?? 0).toString());
       } catch (err) {
         console.error("Failed to load settings:", err);
         toast("Failed to load settings: " + friendlyError(err), "error");
@@ -123,6 +125,7 @@ export function Settings() {
     const dlConc = parseInt(downloadConcurrency, 10);
     const extConc = parseInt(extractionConcurrency, 10);
     const gradeConc = parseInt(gradingConcurrency, 10);
+      const gradeDelay = parseInt(gradingDelay, 10);
 
     if (isNaN(fingerprint) || isNaN(semantic)) {
       toast("Thresholds must be valid numbers between 0 and 100.", "error");
@@ -143,6 +146,7 @@ export function Settings() {
         download_concurrency: isNaN(dlConc) ? 4 : Math.min(Math.max(dlConc, 1), 16),
         extraction_concurrency: isNaN(extConc) ? 4 : Math.min(Math.max(extConc, 1), 16),
         grading_concurrency: isNaN(gradeConc) ? 3 : Math.min(Math.max(gradeConc, 1), 10),
+        grading_delay_seconds: isNaN(gradeDelay) ? 0 : Math.max(gradeDelay, 0),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -560,6 +564,25 @@ export function Settings() {
                 onChange={(e) => setGradingConcurrency(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">Gemini API workers (1–10)</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4 mt-4">
+            <div className="space-y-2">
+              <label htmlFor="grading-delay" className="text-sm font-medium flex items-center gap-2">
+                Free Tier Rate Limit Pacing
+                <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">New</span>
+              </label>
+              <Input
+                id="grading-delay"
+                type="number"
+                min="0"
+                value={gradingDelay}
+                onChange={(e) => setGradingDelay(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Seconds to wait after each grading request. Set to <b>12</b> if you are on the 5 RPM free tier limit for Gemini 2.5.
+              </p>
             </div>
           </div>
         </CardContent>

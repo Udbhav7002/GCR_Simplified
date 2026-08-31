@@ -19,6 +19,7 @@ export interface AppSettings {
   download_concurrency?: number;
   extraction_concurrency?: number;
   grading_concurrency?: number;
+  grading_delay_seconds?: number;
 }
 
 export interface DashboardStats {
