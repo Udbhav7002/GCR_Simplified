@@ -123,13 +123,21 @@ export function Sidebar() {
                 <p className="text-sm text-muted-foreground">
                   GCR Simplified requires beta access. Send an email to request access or ask general questions.
                 </p>
-                <a 
-                  href="mailto:sanagariudbhav@gmail.com?subject=GCR%20Simplified%20Access%20Request"
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full justify-start"
+                <Button 
+                  onClick={() => {
+                    navigator.clipboard.writeText("sanagariudbhav@gmail.com");
+                    const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=sanagariudbhav@gmail.com&su=GCR+Simplified+Access+Request";
+                    openUrl(gmailUrl).catch(() => window.open(gmailUrl, "_blank"));
+                    
+                    // Note: We would normally use toast here, but we don't have it imported in Sidebar.tsx.
+                    // We can just alert or rely on the browser opening.
+                    alert("Email address copied to clipboard!");
+                  }}
+                  className="w-full justify-start gap-2"
                 >
                   <Mail className="w-4 h-4" />
                   Email sanagariudbhav@gmail.com
-                </a>
+                </Button>
               </div>
               <Separator />
               <div className="flex flex-col gap-2">
