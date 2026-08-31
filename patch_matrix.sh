@@ -1,1 +1,0 @@
-sed -i '' 's/<AlertTriangle className="w-3 h-3" \/> Flagged/<AlertTriangle className="w-3 h-3" \/> {result.is_identical_file ? "Identical File" : "Flagged"}/g' src/components/plagiarism/SimilarityMatrix.tsx
