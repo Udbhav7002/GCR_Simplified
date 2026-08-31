@@ -13,14 +13,15 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { getDashboardStats } from "@/lib/ipc";
-import type { DashboardStats } from "@/lib/types";
+import { getDashboardStats, getGoogleAuthStatus } from "@/lib/ipc";
+import type { DashboardStats, GoogleAuthStatus } from "@/lib/types";
 import { friendlyError, useToast } from "@/components/ui/toaster";
 
 export function Dashboard() {
   const navigate = useNavigate();
   const toast = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [authStatus, setAuthStatus] = useState<GoogleAuthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [showBanner, setShowBanner] = useState(() => !localStorage.getItem("hide_welcome_banner"));
 
@@ -30,8 +31,11 @@ export function Dashboard() {
   };
 
   useEffect(() => {
-    getDashboardStats()
-      .then(setStats)
+    Promise.all([getDashboardStats(), getGoogleAuthStatus()])
+      .then(([statsData, authData]) => {
+        setStats(statsData);
+        setAuthStatus(authData);
+      })
       .catch((err) => {
         console.error(err);
         toast("Failed to load dashboard: " + friendlyError(err), "error");
@@ -185,14 +189,29 @@ export function Dashboard() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <BookOpen className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">No courses synced yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Connect your Google Classroom account and sync a course to get started.
-            </p>
-            <Button onClick={() => navigate("/onboarding")} className="gap-2">
-              <GraduationCap className="w-4 h-4" />
-              Connect Google Account
-            </Button>
+            {authStatus?.is_authenticated ? (
+              <>
+                <h3 className="text-lg font-semibold mb-1">Get Started</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  You're connected! Select a course and sync an assignment to begin grading.
+                </p>
+                <Button onClick={() => navigate("/courses")} className="gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  View Courses
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-1">No courses synced yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Connect your Google Classroom account and sync a course to get started.
+                </p>
+                <Button onClick={() => navigate("/onboarding")} className="gap-2">
+                  <GraduationCap className="w-4 h-4" />
+                  Connect Google Account
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
