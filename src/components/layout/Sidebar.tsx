@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toaster";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -29,6 +30,7 @@ export function Sidebar() {
   const [appVersion, setAppVersion] = useState<string>("v0.1.1");
   const [showSetup, setShowSetup] = useState(() => !isOnboardingDismissed());
   const [supportOpen, setSupportOpen] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     getVersion()
@@ -131,7 +133,7 @@ export function Sidebar() {
                     
                     // Note: We would normally use toast here, but we don't have it imported in Sidebar.tsx.
                     // We can just alert or rely on the browser opening.
-                    alert("Email address copied to clipboard!");
+                    toast("Email address copied to clipboard!", "success");
                   }}
                   className="w-full justify-start gap-2"
                 >
