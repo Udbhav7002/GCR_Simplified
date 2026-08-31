@@ -57,6 +57,7 @@ export function Gradebook() {
   const [newCriterionMax, setNewCriterionMax] = useState("10");
   const [savingCriterion, setSavingCriterion] = useState(false);
   const [pushingToClassroom, setPushingToClassroom] = useState(false);
+  const [confirmPush, setConfirmPush] = useState(false);
   const { push, undo } = useUndoStack<GradeOverrideAction>();
 
   const gradingUnlistenRef = useRef<(() => void) | null>(null);
