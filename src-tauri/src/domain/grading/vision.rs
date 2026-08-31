@@ -1,6 +1,4 @@
-use super::gemini::{
-    VisionImage, MAX_VISION_FILE_BYTES, MAX_VISION_FILES, MAX_VISION_TOTAL_BYTES,
-};
+use super::gemini::{VisionImage, MAX_VISION_FILES, MAX_VISION_FILE_BYTES, MAX_VISION_TOTAL_BYTES};
 use base64::{engine::general_purpose, Engine as _};
 use std::path::Path;
 
@@ -211,7 +209,9 @@ mod tests {
         assert_eq!(images[2].mime_type, "application/pdf");
         // Base64 round-trips
         assert_eq!(
-            general_purpose::STANDARD.decode(&images[0].data_base64).unwrap(),
+            general_purpose::STANDARD
+                .decode(&images[0].data_base64)
+                .unwrap(),
             b"jpg-bytes"
         );
     }
@@ -220,7 +220,11 @@ mod tests {
     fn test_natural_sort_pages_in_reading_order() {
         let dir = tempdir();
         for name in [
-            "page-10.png", "page-2.png", "page-1.png", "page-20.png", "page-3.png",
+            "page-10.png",
+            "page-2.png",
+            "page-1.png",
+            "page-20.png",
+            "page-3.png",
         ] {
             write_file(dir.path(), name, b"x");
         }
@@ -228,7 +232,13 @@ mod tests {
         let labels: Vec<&str> = images.iter().map(|i| i.label.as_str()).collect();
         assert_eq!(
             labels,
-            vec!["page-1.png", "page-2.png", "page-3.png", "page-10.png", "page-20.png"]
+            vec![
+                "page-1.png",
+                "page-2.png",
+                "page-3.png",
+                "page-10.png",
+                "page-20.png"
+            ]
         );
     }
 
@@ -245,7 +255,11 @@ mod tests {
     #[test]
     fn test_collect_skips_oversized_files() {
         let dir = tempdir();
-        write_file(dir.path(), "huge.png", vec![0u8; MAX_VISION_FILE_BYTES + 1].as_slice());
+        write_file(
+            dir.path(),
+            "huge.png",
+            vec![0u8; MAX_VISION_FILE_BYTES + 1].as_slice(),
+        );
         write_file(dir.path(), "ok.png", b"tiny");
 
         let images = collect_vision_images(dir.path()).unwrap();

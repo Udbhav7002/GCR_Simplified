@@ -1,6 +1,6 @@
-use crate::core::db::{DbPool, get_setting as db_get_setting};
-use crate::domain::google::save_setting;
+use crate::core::db::{get_setting as db_get_setting, DbPool};
 use crate::core::security;
+use crate::domain::google::save_setting;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 

@@ -220,9 +220,12 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), String> {
 
         if !applied {
             log::info!("Applying schema migration: {}", version);
-            let tx = conn
-                .transaction()
-                .map_err(|e| format!("Failed to begin migration transaction for {}: {}", version, e))?;
+            let tx = conn.transaction().map_err(|e| {
+                format!(
+                    "Failed to begin migration transaction for {}: {}",
+                    version, e
+                )
+            })?;
             tx.execute_batch(sql)
                 .map_err(|e| format!("Failed to execute migration {}: {}", version, e))?;
             let now = chrono::Utc::now().to_rfc3339();
@@ -253,10 +256,10 @@ pub fn init_db(db_path: PathBuf) -> Result<DbPool, String> {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         Ok(())
     });
-    let pool = Pool::new(manager)
-        .map_err(|e| format!("Failed to create DB pool: {}", e))?;
+    let pool = Pool::new(manager).map_err(|e| format!("Failed to create DB pool: {}", e))?;
 
-    let mut conn = pool.get()
+    let mut conn = pool
+        .get()
         .map_err(|e| format!("Failed to get connection from pool: {}", e))?;
     run_migrations(&mut conn)?;
 
@@ -265,23 +268,22 @@ pub fn init_db(db_path: PathBuf) -> Result<DbPool, String> {
 
 /// Get a connection from the pool with proper error handling.
 pub fn get_conn(pool: &DbPool) -> Result<r2d2::PooledConnection<SqliteConnectionManager>, String> {
-    pool.get().map_err(|e| format!("Failed to get DB connection: {}", e))
+    pool.get()
+        .map_err(|e| format!("Failed to get DB connection: {}", e))
 }
 
 /// Get a setting value by key (common string case).
 pub fn get_setting(pool: &DbPool, key: &str) -> Result<Option<String>, String> {
-    query_one(pool, "SELECT value FROM settings WHERE key = ?1", rusqlite::params![key], |row| {
-        row.get(0)
-    })
+    query_one(
+        pool,
+        "SELECT value FROM settings WHERE key = ?1",
+        rusqlite::params![key],
+        |row| row.get(0),
+    )
 }
 
 /// Execute a query that returns a single optional row.
-pub fn query_one<T, P, F>(
-    pool: &DbPool,
-    sql: &str,
-    params: P,
-    map: F,
-) -> Result<Option<T>, String>
+pub fn query_one<T, P, F>(pool: &DbPool, sql: &str, params: P, map: F) -> Result<Option<T>, String>
 where
     P: rusqlite::Params,
     F: FnOnce(&rusqlite::Row) -> Result<T, rusqlite::Error>,
@@ -295,12 +297,7 @@ where
 }
 
 /// Execute a query that returns multiple rows.
-pub fn query_all<T, P, F>(
-    pool: &DbPool,
-    sql: &str,
-    params: P,
-    map: F,
-) -> Result<Vec<T>, String>
+pub fn query_all<T, P, F>(pool: &DbPool, sql: &str, params: P, map: F) -> Result<Vec<T>, String>
 where
     P: rusqlite::Params,
     F: Fn(&rusqlite::Row) -> Result<T, rusqlite::Error>,
@@ -308,15 +305,12 @@ where
     let conn = get_conn(pool)?;
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params, map).map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Failed to read rows: {}", e))
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to read rows: {}", e))
 }
 
 /// Execute an INSERT/UPDATE/DELETE statement, returning rows affected.
-pub fn execute<P: rusqlite::Params>(
-    pool: &DbPool,
-    sql: &str,
-    params: P,
-) -> Result<usize, String> {
+pub fn execute<P: rusqlite::Params>(pool: &DbPool, sql: &str, params: P) -> Result<usize, String> {
     let conn = get_conn(pool)?;
     conn.execute(sql, params).map_err(|e| e.to_string())
 }
@@ -340,7 +334,8 @@ where
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|e| format!("Failed to start transaction: {}", e))?;
     let result = f(&tx)?;
-    tx.commit().map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    tx.commit()
+        .map_err(|e| format!("Failed to commit transaction: {}", e))?;
     Ok(result)
 }
 

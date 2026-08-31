@@ -1,7 +1,7 @@
 use crate::core::db::DbPool;
-use serde_json::json;
 use crate::domain::google::{get_valid_access_token, handle_http_error};
 use reqwest::Client;
+use serde_json::json;
 
 pub async fn push_grade_to_classroom(
     pool: &DbPool,

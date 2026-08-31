@@ -15,6 +15,7 @@ pub struct IntegrityRow {
 }
 
 /// Cell formats shared by all four sheets.
+#[allow(dead_code)]
 struct SheetFormats {
     header: Format,
     title: Format,
@@ -79,6 +80,7 @@ pub fn export_gradebook_xlsx(
     Ok(save_path.to_string_lossy().to_string())
 }
 
+#[allow(dead_code)]
 fn write_summary_sheet(
     workbook: &mut Workbook,
     gradebook: &GradebookView,
@@ -145,16 +147,14 @@ fn write_summary_sheet(
 /// Human-readable identity evidence parsed from the uploaded filename, with a
 /// ✓ when the reg hint matches the roster roll number (suffix match) and ⚠
 /// when it doesn't.
+#[allow(dead_code)]
 fn filename_evidence(row: &GradebookRow) -> String {
     match (&row.file_reg_no, &row.file_name_hint) {
         (None, None) => "-".to_string(),
         (reg, name) => {
             let mut parts = Vec::new();
             if let Some(r) = reg {
-                let matches = row
-                    .roll_number
-                    .to_lowercase()
-                    .ends_with(&r.to_lowercase());
+                let matches = row.roll_number.to_lowercase().ends_with(&r.to_lowercase());
                 parts.push(format!("{}{}", r, if matches { " ✓" } else { " ⚠" }));
             }
             if let Some(n) = name {
@@ -184,7 +184,10 @@ fn write_simple_grade_sheet(
 
     for (row, gradebook_row) in (2..).zip(gradebook.rows.iter()) {
         sheet.write_string_with_format(row, 0, &gradebook_row.student_name, &fmt.normal)?;
-        let reg_no = gradebook_row.file_reg_no.clone().unwrap_or_else(|| "-".to_string());
+        let reg_no = gradebook_row
+            .file_reg_no
+            .clone()
+            .unwrap_or_else(|| "-".to_string());
         sheet.write_string_with_format(row, 1, &reg_no, &fmt.normal)?;
 
         let mut total = 0.0_f64;
@@ -202,6 +205,7 @@ fn write_simple_grade_sheet(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn write_integrity_sheet(
     workbook: &mut Workbook,
     integrity: &[IntegrityRow],
@@ -252,6 +256,7 @@ fn write_integrity_sheet(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn write_feedback_sheet(
     workbook: &mut Workbook,
     gradebook: &GradebookView,
@@ -389,8 +394,10 @@ mod tests {
         // Verify sheet names by reading xl/workbook.xml from the ZIP
         let file = std::fs::File::open(&tmp).unwrap();
         let mut archive = zip::ZipArchive::new(file).expect("Failed to open xlsx as zip archive");
-        
-        let mut workbook_xml = archive.by_name("xl/workbook.xml").expect("workbook.xml not found");
+
+        let mut workbook_xml = archive
+            .by_name("xl/workbook.xml")
+            .expect("workbook.xml not found");
         let mut xml_content = String::new();
         std::io::Read::read_to_string(&mut workbook_xml, &mut xml_content).unwrap();
 
@@ -416,4 +423,3 @@ mod tests {
         std::fs::remove_file(&tmp).ok();
     }
 }
-

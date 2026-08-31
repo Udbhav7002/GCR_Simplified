@@ -6,12 +6,12 @@
 //! - Automated submission download & text extraction
 //! - Gradebook management with Excel export
 
+pub mod api;
 pub mod core;
 pub mod domain;
-pub mod api;
 
-use crate::core::db;
 use crate::api::commands::*;
+use crate::core::db;
 use std::fs;
 use tauri::Manager;
 

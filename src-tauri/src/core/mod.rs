@@ -1,9 +1,9 @@
 //! Core infrastructure modules
 
-pub mod db;
-pub mod security;
 pub mod commands;
-pub mod settings;
-pub mod rubrics;
-pub mod submissions;
+pub mod db;
 pub mod maintenance;
+pub mod rubrics;
+pub mod security;
+pub mod settings;
+pub mod submissions;

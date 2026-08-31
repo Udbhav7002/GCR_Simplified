@@ -163,9 +163,9 @@ export async function gradeAllAssignment(assignmentId: string): Promise<GradeAll
 
 export async function updateGradeOverride(params: GradeOverride): Promise<Grade> {
   return invoke<Grade>("update_grade_override", {
-    grade_id: params.grade_id,
-    teacher_score: params.teacher_score,
-    teacher_feedback: params.teacher_feedback,
+    gradeId: params.grade_id,
+    teacherScore: params.teacher_score,
+    teacherFeedback: params.teacher_feedback,
   });
 }
 

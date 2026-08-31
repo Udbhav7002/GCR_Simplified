@@ -1,7 +1,10 @@
 use super::get_valid_access_token;
 use crate::core::db::DbPool;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Semaphore;
 

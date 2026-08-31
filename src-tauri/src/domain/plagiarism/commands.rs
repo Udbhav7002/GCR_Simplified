@@ -1,11 +1,10 @@
 use super::{tfidf, winnowing, PairwiseResult, PlagiarismReport};
 use crate::core::db::DbPool;
 
-
 use rusqlite::params;
 use tauri::{AppHandle, Manager, State};
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;
 
@@ -14,7 +13,9 @@ fn hash_file(path: &str) -> Option<String> {
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
     while let Ok(n) = file.read(&mut buffer) {
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         hasher.update(&buffer[..n]);
     }
     Some(format!("{:x}", hasher.finalize()))
@@ -22,6 +23,7 @@ fn hash_file(path: &str) -> Option<String> {
 
 /// Resolve the extracted text for every student directory under a coursework's
 /// submissions folder. Returns (student_id, first_file_path, combined_text, file_hashes).
+#[allow(clippy::type_complexity)]
 fn collect_submission_texts(
     pool: &DbPool,
     submissions_dir: &std::path::Path,
@@ -70,7 +72,7 @@ fn collect_submission_texts(
                 continue;
             }
             let file_path_str = file_path.to_string_lossy().to_string();
-            
+
             // Hash the file
             if let Some(hash) = hash_file(&file_path_str) {
                 file_hashes.push(hash);
@@ -163,8 +165,8 @@ pub async fn compute_plagiarism_report(
                     }
                 }
 
-                let mut fp_score = 0.0;
-                let mut sem_score = 0.0;
+                let fp_score;
+                let sem_score;
                 let mut fragments = Vec::new();
 
                 if is_identical_file {
@@ -187,7 +189,9 @@ pub async fn compute_plagiarism_report(
                 }
 
                 let combined = fp_score * 0.5 + sem_score * 0.5;
-                let flagged = is_identical_file || fp_score >= fingerprint_threshold || sem_score >= semantic_threshold;
+                let flagged = is_identical_file
+                    || fp_score >= fingerprint_threshold
+                    || sem_score >= semantic_threshold;
 
                 let student_a_name = roster
                     .as_ref()

@@ -421,7 +421,9 @@ pub async fn grade_submission(
         .ok_or_else(|| "Gemini API key not configured. Please add it in Settings.".to_string())?;
     let client = GeminiClient::new(api_key, Some(settings.gemini_model.clone()))?;
 
-    let extracted_text = get_submission_text(&pool, &submission_id).await?.unwrap_or_default();
+    let extracted_text = get_submission_text(&pool, &submission_id)
+        .await?
+        .unwrap_or_default();
 
     let conn = pool.get().map_err(|e| e.to_string())?;
     let assignment_id: String = conn
@@ -646,11 +648,9 @@ pub async fn grade_all_assignment(
                 if let Some(dir) = dir {
                     match super::vision::collect_vision_images(&dir) {
                         Ok(images) => vision_images = images,
-                        Err(e) => log::warn!(
-                            "Failed to scan files for {}: {}",
-                            submission_id_clone,
-                            e
-                        ),
+                        Err(e) => {
+                            log::warn!("Failed to scan files for {}: {}", submission_id_clone, e)
+                        }
                     }
                 }
             }
@@ -1033,14 +1033,21 @@ pub async fn push_grades_to_classroom(
     state: tauri::State<'_, crate::db::DbPool>,
 ) -> Result<usize, String> {
     let view = get_gradebook(state.clone(), assignment_id.clone()).await?;
-    
+
     let mut count = 0;
     for row in view.rows {
         // We consider a row "approved" if it has any approved grade.
         let has_approved = row.grades.iter().any(|g| g.approved);
         if has_approved {
             let total = row.grades.iter().filter_map(|g| g.score).sum::<f64>();
-            crate::domain::google::grades::push_grade_to_classroom(&state, &course_id, &course_work_id, &row.submission_id, total).await?;
+            crate::domain::google::grades::push_grade_to_classroom(
+                &state,
+                &course_id,
+                &course_work_id,
+                &row.submission_id,
+                total,
+            )
+            .await?;
             count += 1;
         }
     }
@@ -1050,8 +1057,8 @@ pub async fn push_grades_to_classroom(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::grading::gemini::CriterionGrade;
     use crate::core::db;
+    use crate::domain::grading::gemini::CriterionGrade;
     use std::path::PathBuf;
 
     fn temp_db() -> (DbPool, PathBuf) {
@@ -1228,7 +1235,9 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
     /// Run a small async DB helper on a current-thread runtime and return Result.
-    fn block_result<T>(future: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    fn block_result<T>(
+        future: impl std::future::Future<Output = Result<T, String>>,
+    ) -> Result<T, String> {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -1244,7 +1253,7 @@ mod tests {
         let submission = "sub1".to_string();
         seed_submission(&pool, &assignment, &student, &submission);
         let criteria = rubric_criteria(&pool, &assignment);
-        
+
         // Insert an initial AI grade
         let grade_id = uuid::Uuid::new_v4().to_string();
         {
@@ -1278,7 +1287,7 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
-        
+
         assert_eq!(db_score, 8.0);
         assert_eq!(db_feedback, "Good improvement");
         assert_eq!(db_graded_by, "teacher");
@@ -1291,7 +1300,9 @@ mod tests {
             None,
         ));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("cannot exceed criterion max marks"));
+        assert!(result
+            .unwrap_err()
+            .contains("cannot exceed criterion max marks"));
 
         std::fs::remove_file(&path).ok();
     }

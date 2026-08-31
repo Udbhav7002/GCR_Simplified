@@ -1,6 +1,5 @@
 use crate::core::db::{DbPool, ExtractionResult};
 
-
 use crate::domain::grading::filename;
 use rusqlite::params;
 use std::sync::Arc;
@@ -15,10 +14,7 @@ pub async fn extract_text(
     extract_text_impl(&pool, file_path).await
 }
 
-async fn extract_text_impl(
-    pool: &DbPool,
-    file_path: String,
-) -> Result<ExtractionResult, String> {
+async fn extract_text_impl(pool: &DbPool, file_path: String) -> Result<ExtractionResult, String> {
     // Check cache first
     {
         let conn = pool.get().map_err(|e| e.to_string())?;
@@ -175,7 +171,10 @@ pub async fn extract_all_submissions(
     }
 
     let total = work_list.len();
-    let max_concurrency = settings.extraction_concurrency.clamp(1, 16).min(total.max(1));
+    let max_concurrency = settings
+        .extraction_concurrency
+        .clamp(1, 16)
+        .min(total.max(1));
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrency));
     let completed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut handles: Vec<tokio::task::JoinHandle<ExtractionResult>> = Vec::new();
@@ -237,10 +236,7 @@ pub async fn extract_all_submissions(
 
                         // Mirror into the local submissions row (cross-platform path handling)
                         let path = std::path::Path::new(&work.file_path);
-                        let segments: Vec<&str> = path
-                            .iter()
-                            .filter_map(|s| s.to_str())
-                            .collect();
+                        let segments: Vec<&str> = path.iter().filter_map(|s| s.to_str()).collect();
                         if let Some(student_id) =
                             segments.len().checked_sub(2).and_then(|i| segments.get(i))
                         {
@@ -252,15 +248,19 @@ pub async fn extract_all_submissions(
 
                             // Record identity hints from the filename (students
                             // often write name/reg-no in the file name).
-                            let parsed =
-                                filename::parse_filename(&work.label);
+                            let parsed = filename::parse_filename(&work.label);
                             if parsed.reg_no.is_some() || parsed.name.is_some() {
                                 let _ = conn.execute(
                                     "UPDATE submissions
                                      SET file_reg_no = COALESCE(file_reg_no, ?1),
                                          file_name = COALESCE(file_name, ?2)
                                      WHERE assignment_id = ?3 AND student_id = ?4",
-                                    params![parsed.reg_no, parsed.name, &course_work_id, student_id],
+                                    params![
+                                        parsed.reg_no,
+                                        parsed.name,
+                                        &course_work_id,
+                                        student_id
+                                    ],
                                 );
                             }
                         }
@@ -375,7 +375,20 @@ mod tests {
         assert_eq!(result.extraction_method, "failed");
         assert_eq!(result.char_count, 0);
         assert!(result.error.is_some());
-        assert!(result.error.as_ref().unwrap().to_lowercase().contains("no such file") || result.error.as_ref().unwrap().to_lowercase().contains("could not extract"));
+        assert!(
+            result
+                .error
+                .as_ref()
+                .unwrap()
+                .to_lowercase()
+                .contains("no such file")
+                || result
+                    .error
+                    .as_ref()
+                    .unwrap()
+                    .to_lowercase()
+                    .contains("could not extract")
+        );
 
         // Wait, the inner logic will cache? Let's check the result structure.
         assert_eq!(result.file_path, missing_file_path);
@@ -383,4 +396,3 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 }
-

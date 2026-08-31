@@ -37,12 +37,13 @@ Teachers spend upwards of **140+ hours per academic year** just marking assignme
 
 ## 📥 Download
 
-**Latest release:** [v0.1.1 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.1)
+**Latest release:** [v0.1.6 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.6)
 
 | Operating System | Download |
 |----------|----------|
-| **Windows** | [`GCR.Simplified_0.1.1_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_x64_en-US.msi) |
-| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.1_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.1/GCR.Simplified_0.1.1_aarch64.dmg) |
+| **Windows** | [`GCR.Simplified_0.1.6_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.6/GCR.Simplified_0.1.6_x64_en-US.msi) |
+| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.6_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.6/GCR.Simplified_0.1.6_aarch64.dmg) |
+| **Mac (Intel)** | [`GCR.Simplified_0.1.6_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.6/GCR.Simplified_0.1.6_x64.dmg) |
 
 **First-time Mac install:**
 1. Open the `.dmg` and drag **GCR Simplified** to your **Applications** folder.
@@ -76,18 +77,19 @@ Using GCR Simplified turns a 4-hour grading session into a 5-minute task.
 * Review the scores. You can click any score to manually override it.
 * Click **Approve All Suggested**.
 
-### Step 6: Export & Publish
-* The moment you finish grading, a beautiful 4-sheet Excel Gradebook is saved to your Downloads folder!
-* Click **Push to Classroom** to send the grades back to Google Classroom, or **Email Grades** to notify students.
+### Step 6: Export
+* Click **Export** to save a beautiful 4-sheet Excel Gradebook to your computer!
+* Use the exported spreadsheet for your records or to manually enter scores into Google Classroom.
 
 ---
 
 ## 🚀 Key Features
 
-* **Missing Submissions Tracker:** See who hasn't submitted and send them a reminder email with one click.
-* **Handwriting Support:** Students can upload photos of handwritten pages. The app automatically reads and grades them.
+* **Identical File Detection:** Catches students who download a classmate's file, rename it, and re-upload it — flagged instantly via SHA-256 binary hashing.
+* **Handwriting Support:** Students can upload photos of handwritten pages. The app automatically reads and grades them via Gemini Vision.
 * **Offline Plagiarism Engine:** Catches verbatim copying and paraphrased cheating without uploading student work to the cloud.
 * **Auto-Generated Excel Gradebook:** Generates an institutional-grade `.xlsx` workbook containing class stats, the grade sheet, a plagiarism integrity report, and detailed AI feedback for every student.
+* **Missing Submissions Tracker:** See who hasn't submitted at a glance.
 
 ---
 

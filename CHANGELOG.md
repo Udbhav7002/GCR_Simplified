@@ -4,6 +4,35 @@ All notable changes to GCR Simplified are documented in this file. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-08-31
+
+### Added
+- **Identical File Detection:** SHA-256 binary hashing catches students who
+  re-upload a classmate's file under a different name. Flagged with a red
+  "Identical File" badge in the Plagiarism Report UI.
+- Grade Override dialog now works correctly (fixed IPC argument naming).
+- Aggressive rate-limit back-off for Gemini API: on 429 errors the engine
+  now waits 15–30 s per retry (up to 6 retries) instead of failing immediately.
+- Deleting a rubric criterion now correctly resets affected submissions to
+  "ungraded" so the Grade All button re-enables.
+
+### Removed
+- **Push to Classroom** button: Google's API forbids third-party apps from
+  modifying grades on assignments they didn't create. The button has been
+  removed to avoid confusion; use the Export button instead.
+- **Email Grades / Nudge Students** features and the `gmail.send` OAuth
+  scope: eliminates the need for a costly Google Restricted Scope security
+  audit.
+
+### Fixed
+- Build errors that prevented GitHub Actions from producing installers
+  (missing `confirmPush` state, unused imports).
+- README download links now point to the latest release.
+
+### Security
+- Removed `https://www.googleapis.com/auth/gmail.send` scope, reducing
+  the app's OAuth permission footprint.
+
 ## [0.1.1] - 2026-08-19
 
 ### Added

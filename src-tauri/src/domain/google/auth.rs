@@ -15,7 +15,8 @@ const SCOPES: &str = "https://www.googleapis.com/auth/classroom.courses.readonly
 /// Built-in OAuth Desktop client shipped with the app (PKCE — no secret).
 /// Teachers can connect without creating their own Google Cloud project.
 /// Only works for accounts listed as Test Users on the app's OAuth consent screen.
-pub const DEFAULT_CLIENT_ID: &str = "699991123067-b4r8odepmp13digb7eurgrfo93v8na7d.apps.googleusercontent.com";
+pub const DEFAULT_CLIENT_ID: &str =
+    "699991123067-b4r8odepmp13digb7eurgrfo93v8na7d.apps.googleusercontent.com";
 pub const DEFAULT_CLIENT_SECRET: &str = "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";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -148,9 +149,10 @@ pub async fn start_google_login(
 
     // Wait for callback (blocking, so use spawn_blocking)
     let cancel_flag_clone = cancel_flag.0.clone();
-    let auth_code = tokio::task::spawn_blocking(move || wait_for_callback(listener, cancel_flag_clone))
-        .await
-        .map_err(|e| format!("Join error: {}", e))??;
+    let auth_code =
+        tokio::task::spawn_blocking(move || wait_for_callback(listener, cancel_flag_clone))
+            .await
+            .map_err(|e| format!("Join error: {}", e))??;
 
     // Exchange code for tokens (PKCE does not require client_secret)
     let client = reqwest::Client::new();

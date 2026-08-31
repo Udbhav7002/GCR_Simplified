@@ -20,10 +20,7 @@ pub fn extract_text_from_file(file_path: &str) -> Result<(String, String), Strin
                 Some(t) if !t.trim().is_empty() => Ok((t, "pdf".to_string())),
                 _ => {
                     // Scanned / non-text PDF — mark gracefully as skipped
-                    Ok((
-                        String::new(),
-                        "skipped".to_string(),
-                    ))
+                    Ok((String::new(), "skipped".to_string()))
                 }
             }
         }
@@ -31,9 +28,7 @@ pub fn extract_text_from_file(file_path: &str) -> Result<(String, String), Strin
             let text = docx::extract_docx_text(file_path)?;
             Ok((text, "docx".to_string()))
         }
-        "doc" => {
-            Ok((String::new(), "skipped".to_string()))
-        }
+        "doc" => Ok((String::new(), "skipped".to_string())),
         "txt" | "md" | "py" | "java" | "js" | "ts" | "c" | "cpp" | "rs" | "go" | "rb" | "html"
         | "css" | "json" | "xml" | "csv" => {
             let text = std::fs::read_to_string(file_path)

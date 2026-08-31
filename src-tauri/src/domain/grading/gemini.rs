@@ -543,7 +543,10 @@ mod tests {
         let inline = parts[1].inline_data.as_ref().unwrap();
         assert_eq!(inline.mime_type, "image/png");
         assert_eq!(inline.data, "cGFnZTE=");
-        assert_eq!(parts[2].inline_data.as_ref().unwrap().mime_type, "application/pdf");
+        assert_eq!(
+            parts[2].inline_data.as_ref().unwrap().mime_type,
+            "application/pdf"
+        );
 
         // Serialized request must use camelCase inlineData and skip nulls.
         let json = serde_json::to_value(&parts[1]).unwrap();

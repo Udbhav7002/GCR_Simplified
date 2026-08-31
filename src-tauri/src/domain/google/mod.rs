@@ -3,7 +3,7 @@ pub mod classroom;
 pub mod drive;
 pub mod grades;
 
-use crate::core::db::{DbPool, get_setting, execute_void};
+use crate::core::db::{execute_void, get_setting, DbPool};
 use crate::core::security;
 use rusqlite::params;
 
@@ -18,13 +18,10 @@ pub fn save_setting(pool: &DbPool, key: &str, value: &str) -> Result<(), String>
 
 /// Handle HTTP response errors consistently across Google API calls.
 /// Consumes the response body and returns a user-friendly error message.
-pub async fn handle_http_error(
-    resp: reqwest::Response,
-    context: &str,
-) -> String {
+pub async fn handle_http_error(resp: reqwest::Response, context: &str) -> String {
     let status = resp.status();
     let error_text = resp.text().await.unwrap_or_default();
-    
+
     match status.as_u16() {
         400 => format!("{} - Invalid request", context),
         401 => format!("{} - Authentication failed (token expired)", context),
@@ -179,10 +176,15 @@ pub async fn fetch_collection(
                 }
             }
 
-            let response = req.send().await.map_err(|e| format!("Request failed: {}", e))?;
+            let response = req
+                .send()
+                .await
+                .map_err(|e| format!("Request failed: {}", e))?;
             let status = response.status();
 
-            if (status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()) && retry_count < 3 {
+            if (status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error())
+                && retry_count < 3
+            {
                 retry_count += 1;
                 let retry_after_secs = response
                     .headers()
@@ -190,7 +192,7 @@ pub async fn fetch_collection(
                     .and_then(|h| h.to_str().ok())
                     .and_then(|s| s.parse::<u64>().ok())
                     .unwrap_or(1u64 << retry_count); // 2s, 4s, 8s exponential backoff
-                
+
                 tokio::time::sleep(std::time::Duration::from_secs(retry_after_secs.min(30))).await;
                 continue;
             }

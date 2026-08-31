@@ -1,5 +1,6 @@
-use crate::core::db::{DbPool, get_setting};
+use crate::core::db::{get_setting, DbPool};
 
+#[allow(dead_code)]
 const KEYCHAIN_SERVICE: &str = "com.gcrsimplified.app";
 
 /// Keys that hold credentials and must live in the OS keychain.
@@ -20,7 +21,8 @@ pub fn save_secret(pool: &DbPool, key: &str, value: &str) -> Result<(), String> 
         pool,
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
         rusqlite::params![key, value],
-    ).map_err(|e| format!("DB write failed: {}", e))
+    )
+    .map_err(|e| format!("DB write failed: {}", e))
 }
 
 pub fn get_secret(pool: &DbPool, key: &str) -> Result<Option<String>, String> {
@@ -37,6 +39,7 @@ pub fn delete_secret(pool: &DbPool, key: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn delete_setting(pool: &DbPool, key: &str) {
     if let Ok(conn) = pool.get() {
         let _ = conn.execute(

@@ -37,7 +37,14 @@ pub fn create_rubric_criterion(
     conn.execute(
         "INSERT INTO rubric_criteria (id, assignment_id, name, description, max_marks, sort_order)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![id, assignment_id, name.trim(), description, max_marks, sort_order],
+        params![
+            id,
+            assignment_id,
+            name.trim(),
+            description,
+            max_marks,
+            sort_order
+        ],
     )
     .map_err(|e| e.to_string())?;
 
@@ -137,7 +144,7 @@ pub fn delete_rubric_criterion(pool: State<DbPool>, id: String) -> Result<(), St
     let conn = pool.get().map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM rubric_criteria WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
-        
+
     conn.execute(
         "UPDATE submissions SET grading_status = 'ungraded', ai_total_score = NULL 
          WHERE id IN (
@@ -145,8 +152,9 @@ pub fn delete_rubric_criterion(pool: State<DbPool>, id: String) -> Result<(), St
              WHERE (SELECT COUNT(*) FROM grades WHERE submission_id = submissions.id) = 0
          )",
         [],
-    ).map_err(|e| e.to_string())?;
-    
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 

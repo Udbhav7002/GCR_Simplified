@@ -7,11 +7,11 @@ use std::sync::{
 use tauri::State;
 
 /// A thread-safe cancellation token that can be shared across async tasks.
-/// 
+///
 /// Usage:
 /// ```rust
 /// use gcr_app_lib::core::commands::CancellationToken;
-/// 
+///
 /// let cancel = CancellationToken::new();
 /// // In spawned task:
 /// if cancel.is_cancelled() { return; }
@@ -25,17 +25,17 @@ impl CancellationToken {
     pub fn new() -> Self {
         Self(Arc::new(AtomicBool::new(false)))
     }
-    
+
     /// Check if cancellation was requested.
     pub fn is_cancelled(&self) -> bool {
         self.0.load(Ordering::SeqCst)
     }
-    
+
     /// Request cancellation.
     pub fn cancel(&self) {
         self.0.store(true, Ordering::SeqCst);
     }
-    
+
     /// Reset the cancellation state (for reuse).
     pub fn reset(&self) {
         self.0.store(false, Ordering::SeqCst);
