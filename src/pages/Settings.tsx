@@ -25,7 +25,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   startGoogleLogin,
   cancelGoogleLogin,
-  getGoogleAuthStatus, googleLogout,
+  getGoogleAuthStatus, 
   googleLogout,
   getSettings,
   saveSettings,
@@ -116,19 +116,6 @@ export function Settings() {
   };
 
   
-  const handleGoogleDisconnect = async () => {
-    try {
-      setLoginLoading(true);
-      await googleLogout();
-      setAuthStatus({ is_authenticated: false });
-      toast("Successfully disconnected from Google Classroom", "success");
-    } catch (err) {
-      console.error(err);
-      toast("Failed to disconnect: " + friendlyError(err), "error");
-    } finally {
-      setLoginLoading(false);
-    }
-  };
 
   const handleSave = async () => {
     const fingerprint = parseInt(fingerprintThreshold, 10);

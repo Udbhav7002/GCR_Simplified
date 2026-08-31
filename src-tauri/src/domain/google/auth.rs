@@ -227,7 +227,6 @@ pub async fn cancel_google_login(cancel_flag: State<'_, LoginCancelFlag>) -> Res
     Ok(())
 }
 
-#[tauri::command]
 
 #[tauri::command]
 pub async fn get_google_auth_status(pool: State<'_, DbPool>) -> Result<GoogleAuthStatus, String> {
