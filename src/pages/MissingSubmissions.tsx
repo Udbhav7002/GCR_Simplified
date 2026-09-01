@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getMissingSubmissions, listGoogleSubmissions } from "@/lib/ipc";
-import { friendlyError } from "@/components/ui/toaster";
-import type { MissingStudent } from "@/lib/types";
+import { useMissingSubmissions, useSubmissions } from "@/hooks/useGoogleData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, Users } from "lucide-react";
@@ -11,38 +8,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export function MissingSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
 
-  const [missingStudents, setMissingStudents] = useState<MissingStudent[]>([]);
-  const [totalStudents, setTotalStudents] = useState(0);
-  const [submittedCount, setSubmittedCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: missingStudents = [], isLoading: loadingMissing, errorMsg: errorMissing, refetch: refetchMissing } = useMissingSubmissions(courseId || "", courseWorkId || "");
+  const { data: submissions = [], isLoading: loadingSubs, errorMsg: errorSubs, refetch: refetchSubs, isSyncing } = useSubmissions(courseId || "", courseWorkId || "");
 
+  const loading = loadingMissing || loadingSubs;
+  const error = errorMissing || errorSubs;
+
+  const totalStudents = missingStudents.length + submissions.filter((s) => s.state === "TURNED_IN").length;
+  const submittedCount = submissions.filter((s) => s.state === "TURNED_IN").length;
   const missingCount = missingStudents.length;
   const submissionRate = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
 
-  const fetchMissing = useCallback(async () => {
-    if (!courseId || !courseWorkId) return;
+  
+  const handleRetry = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const [missing, submissions] = await Promise.all([
-        getMissingSubmissions(courseId, courseWorkId),
-        listGoogleSubmissions(courseId, courseWorkId),
-      ]);
-      setMissingStudents(missing);
-      setTotalStudents(missing.length + submissions.filter((s) => s.state === "TURNED_IN").length);
-      setSubmittedCount(submissions.filter((s) => s.state === "TURNED_IN").length);
-    } catch (err: unknown) {
-      console.error(err);
-      setError(friendlyError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [courseId, courseWorkId]);
-
-  useEffect(() => {
-    fetchMissing();
-  }, [fetchMissing]);
+      await Promise.all([refetchMissing(), refetchSubs()]);
+    } catch (e) { console.error(e); }
+  };
 
   if (error) {
     return (
@@ -56,7 +38,7 @@ export function MissingSubmissions() {
               <Button render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />} variant="outline">
                 Back to Submissions
               </Button>
-              <Button onClick={fetchMissing} variant="default">
+              <Button onClick={handleRetry} variant="default">
                 Retry
               </Button>
             </div>
@@ -139,8 +121,8 @@ export function MissingSubmissions() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={fetchMissing} disabled={loading} variant="outline" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <Button onClick={handleRetry} disabled={loading || isSyncing} variant="outline" className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading || isSyncing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>

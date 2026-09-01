@@ -1,8 +1,5 @@
-import { useEffect, useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listGoogleCourses } from "@/lib/ipc";
-import type { GoogleCourse } from "@/lib/types";
-import { friendlyError } from "@/components/ui/toaster";
+import { useCourses } from "@/hooks/useGoogleData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,27 +13,14 @@ function isAuthError(message: string): boolean {
 
 export function Courses() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<GoogleCourse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: courses = [], isLoading: loading, errorMsg: error, sync, isSyncing, refetch } = useCourses();
 
-  const fetchCourses = useCallback(async (force?: boolean) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await listGoogleCourses(force);
-      setCourses(data);
-    } catch (err: unknown) {
-      console.error(err);
-      setError(friendlyError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCourses(false);
-  }, [fetchCourses]);
+  const handleSync = () => {
+    sync().catch(console.error);
+  };
+  const handleRetry = () => {
+    refetch().catch(console.error);
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -45,8 +29,8 @@ export function Courses() {
           <h1 className="text-2xl font-semibold tracking-tight">Google Classroom</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage Google Classroom courses and assignments.</p>
         </div>
-        <Button id="tour-sync-btn" onClick={() => fetchCourses(true)} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        <Button id="tour-sync-btn" onClick={() => handleSync} disabled={loading || isSyncing} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${loading || isSyncing ? "animate-spin" : ""}`} />
           Sync
         </Button>
       </div>
@@ -69,7 +53,7 @@ export function Courses() {
               <Button render={<Link to="/onboarding" />} variant="outline">
                 Connect Google
               </Button>
-              <Button onClick={() => fetchCourses(false)} variant="default">
+              <Button onClick={() => handleRetry} variant="default">
                 Retry
               </Button>
             </div>

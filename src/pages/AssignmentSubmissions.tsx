@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
+import { useSubmissions } from "@/hooks/useGoogleData";
 import {
-  listGoogleSubmissions,
   downloadSubmissionFile,
   downloadAllSubmissions,
   extractAllSubmissions,
@@ -20,10 +20,10 @@ import { motion } from "framer-motion";
 
 export function AssignmentSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
+  
+  const { data: submissions = [], isLoading: loading, errorMsg: error, sync, isSyncing } = useSubmissions(courseId || "", courseWorkId || "");
+  
   const toast = useToast();
-  const [submissions, setSubmissions] = useState<GoogleSubmission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [downloadingItems, setDownloadingItems] = useState<Record<string, "downloading" | "success" | "error">>({});
   const [extractionResults, setExtractionResults] = useState<Record<string, ExtractionResult>>({});
   const [extractingAll, setExtractingAll] = useState(false);
@@ -34,6 +34,8 @@ export function AssignmentSubmissions() {
 
   const downloadUnlistenRef = useRef<(() => void) | null>(null);
   const extractionUnlistenRef = useRef<(() => void) | null>(null);
+
+  const handleSync = () => { sync().catch(console.error); };
 
   useEffect(() => {
     let mounted = true;
@@ -67,27 +69,7 @@ export function AssignmentSubmissions() {
     };
   }, []);
 
-  const fetchSubmissions = useCallback(
-    async (force?: boolean) => {
-      if (!courseId || !courseWorkId) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await listGoogleSubmissions(courseId, courseWorkId, force);
-        setSubmissions(data);
-      } catch (err: unknown) {
-        console.error(err);
-        setError(friendlyError(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [courseId, courseWorkId]
-  );
-
-  useEffect(() => {
-    fetchSubmissions(false);
-  }, [fetchSubmissions]);
+  
 
   const extractionByStudent = useMemo(() => {
     const map: Record<string, ExtractionResult> = {};
@@ -210,7 +192,7 @@ export function AssignmentSubmissions() {
           <CardContent className="pt-6 flex flex-col items-center justify-center text-center space-y-4">
             <h3 className="text-lg font-medium text-destructive">Error Loading Submissions</h3>
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchSubmissions(true)} variant="outline">
+            <Button onClick={() => handleSync()} variant="outline">
               Retry
             </Button>
           </CardContent>
@@ -256,8 +238,8 @@ export function AssignmentSubmissions() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => fetchSubmissions(true)} disabled={loading} variant="ghost" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <Button onClick={() => handleSync()} disabled={loading || isSyncing} variant="ghost" className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading || isSyncing ? "animate-spin" : ""}`} />
             Sync
           </Button>
 

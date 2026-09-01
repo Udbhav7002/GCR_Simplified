@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,35 +13,22 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { getDashboardStats, getGoogleAuthStatus } from "@/lib/ipc";
-import type { DashboardStats, GoogleAuthStatus } from "@/lib/types";
-import { friendlyError, useToast } from "@/components/ui/toaster";
+import { useDashboardStats, useAuthStatus } from "@/hooks/useGoogleData";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const toast = useToast();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [authStatus, setAuthStatus] = useState<GoogleAuthStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  
+  const { data: stats, isLoading: loadingStats } = useDashboardStats();
+  const { data: authStatus, isLoading: loadingAuth } = useAuthStatus();
+  
+  const loading = loadingStats || loadingAuth;
   const [showBanner, setShowBanner] = useState(() => !localStorage.getItem("hide_welcome_banner"));
 
   const dismissBanner = () => {
     localStorage.setItem("hide_welcome_banner", "true");
     setShowBanner(false);
   };
-
-  useEffect(() => {
-    Promise.all([getDashboardStats(), getGoogleAuthStatus()])
-      .then(([statsData, authData]) => {
-        setStats(statsData);
-        setAuthStatus(authData);
-      })
-      .catch((err) => {
-        console.error(err);
-        toast("Failed to load dashboard: " + friendlyError(err), "error");
-      })
-      .finally(() => setLoading(false));
-  }, [toast]);
 
   return (
     <div className="p-8 space-y-8">

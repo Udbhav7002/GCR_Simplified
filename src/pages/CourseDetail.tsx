@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { listGoogleStudents, listGoogleCoursework, listGoogleCourses } from "@/lib/ipc";
-import type { GoogleStudent, GoogleCourseWork } from "@/lib/types";
-import { friendlyError } from "@/components/ui/toaster";
+import { useCourses, useCoursework, useStudents } from "@/hooks/useGoogleData";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,40 +9,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
-  const [students, setStudents] = useState<GoogleStudent[]>([]);
-  const [coursework, setCoursework] = useState<GoogleCourseWork[]>([]);
-  const [courseName, setCourseName] = useState<string>("Course Details");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { data: courses = [], isLoading: loadingCourses, errorMsg: errorCourses, refetch: refetchCourses, sync: syncCourses, isSyncing: syncingCourses } = useCourses();
+  const { data: students = [], isLoading: loadingStudents, errorMsg: errorStudents, refetch: refetchStudents, sync: syncStudents, isSyncing: syncingStudents } = useStudents(courseId || "");
+  const { data: coursework = [], isLoading: loadingCoursework, errorMsg: errorCoursework, refetch: refetchCoursework, sync: syncCoursework, isSyncing: syncingCoursework } = useCoursework(courseId || "");
 
-  const fetchData = useCallback(
-    async (force?: boolean) => {
-      if (!courseId) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const [studentsData, courseworkData, coursesData] = await Promise.all([
-          listGoogleStudents(courseId, force),
-          listGoogleCoursework(courseId, force),
-          listGoogleCourses(force),
-        ]);
-        setStudents(studentsData);
-        setCoursework(courseworkData);
-        const course = coursesData.find((c) => c.id === courseId);
-        if (course) setCourseName(course.name);
-      } catch (err: unknown) {
-        console.error(err);
-        setError(friendlyError(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [courseId]
-  );
+  const courseName = courses.find((c) => c.id === courseId)?.name || "Course Details";
+  const loading = loadingCourses || loadingStudents || loadingCoursework;
+  const isSyncing = syncingCourses || syncingStudents || syncingCoursework;
+  const error = errorCourses || errorStudents || errorCoursework;
 
-  useEffect(() => {
-    fetchData(false);
-  }, [fetchData]);
+  const handleSync = async () => {
+    try {
+      await Promise.all([syncCourses(), syncStudents(), syncCoursework()]);
+    } catch (e) { console.error(e); }
+  };
+  
+  const handleRetry = async () => {
+    try {
+      await Promise.all([refetchCourses(), refetchStudents(), refetchCoursework()]);
+    } catch (e) { console.error(e); }
+  };
 
   if (error) {
     return (
@@ -58,7 +42,7 @@ export function CourseDetail() {
               <Button render={<Link to="/courses" />} variant="outline">
                 Back to Courses
               </Button>
-              <Button onClick={() => fetchData(false)} variant="default">
+              <Button onClick={() => handleRetry()} variant="default">
                 Retry
               </Button>
             </div>
@@ -91,8 +75,8 @@ export function CourseDetail() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => fetchData(true)} disabled={loading} variant="outline" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <Button onClick={() => handleSync()} disabled={loading || isSyncing} variant="outline" className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading || isSyncing ? "animate-spin" : ""}`} />
             Sync
           </Button>
         </div>
