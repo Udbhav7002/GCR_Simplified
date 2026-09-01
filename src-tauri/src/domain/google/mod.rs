@@ -277,7 +277,7 @@ pub async fn get_valid_access_token(pool: &DbPool) -> Result<String, String> {
         .form(&[
             ("grant_type", "refresh_token"),
             ("client_id", &client_id),
-            ("client_secret", auth::DEFAULT_CLIENT_SECRET),
+            ("client_secret", auth::get_client_secret().as_str()),
             ("refresh_token", &refresh_token),
         ])
         .send()
