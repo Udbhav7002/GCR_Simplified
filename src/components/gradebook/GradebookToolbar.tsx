@@ -79,7 +79,7 @@ export function GradebookToolbar({
         try {
           const path = await exportGradebook({ assignmentId, courseId, courseWorkId });
           toast(`Gradebook auto-exported:\n${path}`, "success");
-        } catch (exportErr: unknown) {
+        } catch {
           toast("Grading done, but auto-export failed. Use Export Gradebook.", "error");
         }
       }
