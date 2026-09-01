@@ -1,49 +1,19 @@
-use crate::core::db::DbPool;
+const fs = require('fs');
+let code = fs.readFileSync('src-tauri/src/domain/export/commands.rs', 'utf8');
+
+const imports = `use crate::core::db::DbPool;
 use crate::domain::export::xlsx::{export_gradebook_xlsx, IntegrityRow};
 use crate::domain::plagiarism::PlagiarismReport;
 use crate::domain::grading::commands::get_gradebook;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State};`;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ExportOptions {
-    pub assignment_id: String,
-    pub course_id: Option<String>,
-    pub course_work_id: Option<String>,
-    pub save_path: Option<String>,
-}
+// Replace all imports
+code = code.replace(/use crate::core::db::DbPool;[\s\S]*?use tauri::\{AppHandle, Manager, State\};/, imports);
 
-#[tauri::command]
-pub async fn export_gradebook(
-    app: AppHandle,
-    pool: State<'_, DbPool>,
-    options: ExportOptions,
-) -> Result<String, String> {
-    let gradebook = get_gradebook(pool.clone(), options.assignment_id).await?;
-
-    let path = if let Some(save_path) = options.save_path {
-        save_path
-    } else {
-        let filename = gradebook
-            .assignment_title
-            .replace(
-                |c: char| !c.is_alphanumeric() && c != ' ' && c != '_' && c != '-',
-                "",
-            )
-            .replace(' ', "_")
-            + ".xlsx";
-
-        let download_dir = app
-            .path()
-            .download_dir()
-            .map_err(|e| e.to_string())?
-            .join(&filename);
-
-        download_dir.to_string_lossy().to_string()
-    };
-
-    
+// Insert integrity logic
+const logic = `
     let mut integrity_rows = Vec::new();
     if let (Some(cid), Some(cwid)) = (&options.course_id, &options.course_work_id) {
         if let Ok(conn) = pool.get() {
@@ -68,5 +38,8 @@ pub async fn export_gradebook(
         }
     }
 
-    export_gradebook_xlsx(&gradebook, &integrity_rows, Path::new(&path))
-}
+    export_gradebook_xlsx(&gradebook, &integrity_rows, Path::new(&path))`;
+
+code = code.replace(/export_gradebook_xlsx\(&gradebook, &\[\], Path::new\(&path\)\)/, logic);
+
+fs.writeFileSync('src-tauri/src/domain/export/commands.rs', code);

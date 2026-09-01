@@ -1,6 +1,5 @@
 use crate::core::db::{get_setting, DbPool};
 
-#[allow(dead_code)]
 const KEYCHAIN_SERVICE: &str = "com.gcrsimplified.app";
 
 /// Keys that hold credentials and must live in the OS keychain.
@@ -16,7 +15,15 @@ pub fn is_secret_key(key: &str) -> bool {
 }
 
 /// Store a secret in the OS keychain (macOS Keychain / Windows Credential
+use keyring::Entry;
+
 pub fn save_secret(pool: &DbPool, key: &str, value: &str) -> Result<(), String> {
+    if let Ok(entry) = Entry::new(KEYCHAIN_SERVICE, key) {
+        if entry.set_password(value).is_ok() {
+            delete_setting(pool, key);
+            return Ok(());
+        }
+    }
     crate::core::db::execute_void(
         pool,
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
@@ -26,20 +33,22 @@ pub fn save_secret(pool: &DbPool, key: &str, value: &str) -> Result<(), String> 
 }
 
 pub fn get_secret(pool: &DbPool, key: &str) -> Result<Option<String>, String> {
+    if let Ok(entry) = Entry::new(KEYCHAIN_SERVICE, key) {
+        if let Ok(password) = entry.get_password() {
+            return Ok(Some(password));
+        }
+    }
     get_setting(pool, key)
 }
 
 pub fn delete_secret(pool: &DbPool, key: &str) -> Result<(), String> {
-    if let Ok(conn) = pool.get() {
-        let _ = conn.execute(
-            "DELETE FROM settings WHERE key = ?1",
-            rusqlite::params![key],
-        );
+    if let Ok(entry) = Entry::new(KEYCHAIN_SERVICE, key) {
+        let _ = entry.delete_credential();
     }
+    delete_setting(pool, key);
     Ok(())
 }
 
-#[allow(dead_code)]
 fn delete_setting(pool: &DbPool, key: &str) {
     if let Ok(conn) = pool.get() {
         let _ = conn.execute(

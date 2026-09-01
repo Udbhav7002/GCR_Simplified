@@ -1,9 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use gcr_app_lib::plagiarism::{tfidf::compare_all_tfidf, winnowing::compare_winnowing};
+use gcr_app_lib::domain::plagiarism::{tfidf::compare_all_tfidf, winnowing::compare_winnowing};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
 fn generate_random_word() -> String {
+    let mut rng = thread_rng();
     let length = rng.gen_range(3..10);
     (0..length)
         .map(|_| rng.sample(Alphanumeric) as char)
