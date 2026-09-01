@@ -37,13 +37,13 @@ Teachers spend upwards of **140+ hours per academic year** just marking assignme
 
 ## 📥 Download
 
-**Latest release:** [v0.1.4 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.4)
+**Latest release:** [v0.1.5 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.5)
 
 | Operating System | Download |
 |----------|----------|
-| **Windows** | [`GCR.Simplified_0.1.4_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.4/GCR.Simplified_0.1.4_x64_en-US.msi) |
-| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.4_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.4/GCR.Simplified_0.1.4_aarch64.dmg) |
-| **Mac (Intel)** | [`GCR.Simplified_0.1.4_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.4/GCR.Simplified_0.1.4_x64.dmg) |
+| **Windows** | [`GCR.Simplified_0.1.5_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_x64_en-US.msi) |
+| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.5_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_aarch64.dmg) |
+| **Mac (Intel)** | [`GCR.Simplified_0.1.5_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_x64.dmg) |
 
 **First-time Mac install:**
 1. Open the `.dmg` and drag **GCR Simplified** to your **Applications** folder.
