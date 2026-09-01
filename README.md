@@ -37,13 +37,13 @@ Teachers spend upwards of **140+ hours per academic year** just marking assignme
 
 ## 📥 Download
 
-**Latest release:** [v0.1.5 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.5)
+**Latest release:** [v0.1.9 on GitHub Releases](https://github.com/Udbhav7002/GCR_Simplified/releases/tag/v0.1.9)
 
 | Operating System | Download |
 |----------|----------|
-| **Windows** | [`GCR.Simplified_0.1.5_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_x64_en-US.msi) |
-| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.5_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_aarch64.dmg) |
-| **Mac (Intel)** | [`GCR.Simplified_0.1.5_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.5/GCR.Simplified_0.1.5_x64.dmg) |
+| **Windows** | [`GCR.Simplified_0.1.9_x64_en-US.msi`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.9/GCR.Simplified_0.1.9_x64_en-US.msi) |
+| **Mac (Apple Silicon)** | [`GCR.Simplified_0.1.9_aarch64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.9/GCR.Simplified_0.1.9_aarch64.dmg) |
+| **Mac (Intel)** | [`GCR.Simplified_0.1.9_x64.dmg`](https://github.com/Udbhav7002/GCR_Simplified/releases/download/v0.1.9/GCR.Simplified_0.1.9_x64.dmg) |
 
 **First-time Mac install:**
 1. Open the `.dmg` and drag **GCR Simplified** to your **Applications** folder.
@@ -119,20 +119,21 @@ npm run tauri dev
 
 ### System Architecture
 
-The project has been refactored into a clean Domain-Driven Design structure:
+The project is built on a clean Domain-Driven Design structure with robust local caching:
 
 ```text
 GCR_Simplified/
 ├── src/                               # React 19 + TypeScript Frontend (Base UI / Vite)
-│   ├── components/                    # UI Components (Gradebook, Submissions, Plagiarism)
-│   ├── pages/                         # Route Views (Dashboard, Settings, CourseDetail, etc.)
+│   ├── components/                    # UI Components
+│   ├── hooks/                         # React Query data fetching pipelines
+│   ├── pages/                         # Route Views
 │   └── lib/                           # Tauri IPC bridge & TypeScript types
 │
 └── src-tauri/                         # Rust Core Backend
     ├── src/
-    │   ├── core/                      # Foundation: Database, Settings, Security, Maintenance
+    │   ├── core/                      # Foundation: SQLite DB, Security (Keychain), Maintenance
     │   ├── domain/                    # Business Logic:
-    │   │   ├── google/                # OAuth2, Classroom, Drive, Gmail APIs
+    │   │   ├── google/                # OAuth2 (PKCE), Classroom, Drive
     │   │   ├── extraction/            # Document parsing (PDF, DOCX, OCR)
     │   │   ├── grading/               # AI Evaluation & Gemini Vision
     │   │   ├── plagiarism/            # Winnowing & TF-IDF Cosine algorithms
@@ -144,10 +145,13 @@ GCR_Simplified/
 ### Testing & Building
 
 ```bash
-# Run Rust test suite
+# Run Rust backend test suite
 cd src-tauri && cargo test
 
-# Build production installers (.dmg, .exe, .deb)
+# Run React frontend test suite (Vitest)
+npm run test
+
+# Build production installers (.dmg, .exe, .deb, .rpm, .AppImage)
 npm run tauri build
 ```
 
