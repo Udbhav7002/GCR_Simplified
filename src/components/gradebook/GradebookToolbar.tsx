@@ -5,12 +5,7 @@ import { useToast, friendlyError } from "@/components/ui/toaster";
 import { useGradebookMutations } from "@/hooks/useGradebookData";
 import { useQueryClient } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
-import {
-  downloadAllSubmissions,
-  extractAllSubmissions,
-  gradeAllAssignment,
-  exportGradebook,
-} from "@/lib/ipc";
+import { downloadAllSubmissions, extractAllSubmissions, gradeAllAssignment, exportGradebook } from "@/lib/ipc";
 import type { GradebookView, GradingProgressPayload } from "@/lib/types";
 
 interface GradebookToolbarProps {
@@ -35,10 +30,13 @@ export function GradebookToolbar({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { approveAll } = useGradebookMutations(assignmentId);
-  const suggestedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter(g => g.graded_by === "ai" && !g.approved).length, 0);
+  const suggestedCount = gradebook.rows.reduce(
+    (acc, r) => acc + r.grades.filter((g) => g.graded_by === "ai" && !g.approved).length,
+    0
+  );
   const [gradingAll, setGradingAll] = useState(false);
   const [exporting, setExporting] = useState(false);
-  
+
   const gradingUnlistenRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -62,14 +60,17 @@ export function GradebookToolbar({
     try {
       setGradingAll(true);
       setProgress(null);
-      
+
       toast("Downloading and extracting latest student files...", "info");
       await downloadAllSubmissions(courseId, courseWorkId);
       await extractAllSubmissions(courseId, courseWorkId);
 
       const result = await gradeAllAssignment(assignmentId);
       if (result.failed > 0) {
-        toast(`AI grading finished: ${result.graded.length} graded, ${result.failed} failed.\n${result.failed_names.slice(0, 3).join("\n")}`, "error");
+        toast(
+          `AI grading finished: ${result.graded.length} graded, ${result.failed} failed.\n${result.failed_names.slice(0, 3).join("\n")}`,
+          "error"
+        );
       } else {
         toast(`AI grading complete for ${result.graded.length} submissions`, "success");
       }
@@ -106,17 +107,17 @@ export function GradebookToolbar({
 
   return (
     <div className="flex items-center gap-2">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={onRefresh} 
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onRefresh}
         disabled={isRefetching}
         className="text-muted-foreground hover:text-foreground"
       >
         <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
         Refresh
       </Button>
-      
+
       <Button
         variant="default"
         size="sm"
@@ -138,12 +139,7 @@ export function GradebookToolbar({
         Approve All ({suggestedCount})
       </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExport}
-        disabled={exporting}
-      >
+      <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
         <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
         Export
       </Button>

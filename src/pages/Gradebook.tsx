@@ -36,7 +36,7 @@ export function Gradebook() {
   const [editingGrade, setEditingGrade] = useState<{ grade: Grade; row: GradebookRow } | null>(null);
   const [overrideScore, setOverrideScore] = useState("");
   const [overrideFeedback, setOverrideFeedback] = useState("");
-  
+
   const { push, undo } = useUndoStack<GradeOverrideAction>();
 
   // Global Ctrl+Z / Cmd+Z for undoing overrides
@@ -48,13 +48,16 @@ export function Gradebook() {
 
         const action = undo();
         if (action) {
-          updateOverride.mutate({
-            grade_id: action.gradeId,
-            teacher_score: action.previousScore ?? 0,
-            teacher_feedback: action.previousFeedback || undefined,
-          }, {
-            onSuccess: () => toast("Override undone", "success"),
-          });
+          updateOverride.mutate(
+            {
+              grade_id: action.gradeId,
+              teacher_score: action.previousScore ?? 0,
+              teacher_feedback: action.previousFeedback || undefined,
+            },
+            {
+              onSuccess: () => toast("Override undone", "success"),
+            }
+          );
         }
       }
     };
@@ -82,9 +85,12 @@ export function Gradebook() {
   }
 
   const totalStudents = gradebook.rows.length;
-  const gradedCount = gradebook.rows.filter(r => r.grades.length > 0).length;
-  const suggestedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter(g => g.graded_by === "ai" && !g.approved).length, 0);
-  const approvedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter(g => g.approved).length, 0);
+  const gradedCount = gradebook.rows.filter((r) => r.grades.length > 0).length;
+  const suggestedCount = gradebook.rows.reduce(
+    (acc, r) => acc + r.grades.filter((g) => g.graded_by === "ai" && !g.approved).length,
+    0
+  );
+  const approvedCount = gradebook.rows.reduce((acc, r) => acc + r.grades.filter((g) => g.approved).length, 0);
 
   const handleEditGrade = (row: GradebookRow, grade: Grade) => {
     setEditingGrade({ row, grade });
@@ -107,42 +113,63 @@ export function Gradebook() {
       newScore: score,
     });
 
-    updateOverride.mutate({
-      grade_id: editingGrade.grade.id,
-      teacher_score: score,
-      teacher_feedback: overrideFeedback,
-    }, {
-      onSuccess: () => {
-        setEditingGrade(null);
-        toast("Grade updated", "success");
+    updateOverride.mutate(
+      {
+        grade_id: editingGrade.grade.id,
+        teacher_score: score,
+        teacher_feedback: overrideFeedback,
+      },
+      {
+        onSuccess: () => {
+          setEditingGrade(null);
+          toast("Grade updated", "success");
+        },
       }
-    });
+    );
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-8 max-w-7xl mx-auto space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-8 max-w-7xl mx-auto space-y-6"
+    >
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 pt-8 -mt-8 -mx-8 px-8 border-b mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />} variant="ghost" size="icon" className="mt-1 shrink-0">
+          <Button
+            render={<Link to={`/courses/${courseId}/assignments/${courseWorkId}`} />}
+            variant="ghost"
+            size="icon"
+            className="mt-1 shrink-0"
+          >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Link to="/courses" className="hover:text-foreground transition-colors">Courses</Link>
+              <Link to="/courses" className="hover:text-foreground transition-colors">
+                Courses
+              </Link>
               <ChevronRight className="w-4 h-4" />
-              <Link to={`/courses/${courseId}`} className="hover:text-foreground transition-colors whitespace-nowrap">Course Details</Link>
+              <Link to={`/courses/${courseId}`} className="hover:text-foreground transition-colors whitespace-nowrap">
+                Course Details
+              </Link>
               <ChevronRight className="w-4 h-4" />
-              <Link to={`/courses/${courseId}/assignments/${courseWorkId}`} className="hover:text-foreground transition-colors whitespace-nowrap">Submissions</Link>
+              <Link
+                to={`/courses/${courseId}/assignments/${courseWorkId}`}
+                className="hover:text-foreground transition-colors whitespace-nowrap"
+              >
+                Submissions
+              </Link>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">{gradebook.assignment_title}</h1>
           </div>
         </div>
-        
-        <GradebookToolbar 
-          assignmentId={assignmentId!} 
-          courseId={courseId} 
-          courseWorkId={courseWorkId} 
-          gradebook={gradebook} 
+
+        <GradebookToolbar
+          assignmentId={assignmentId!}
+          courseId={courseId}
+          courseWorkId={courseWorkId}
+          gradebook={gradebook}
           setProgress={setProgress}
           isRefetching={isRefetching}
           onRefresh={() => refetch()}
@@ -152,10 +179,38 @@ export function Gradebook() {
       {progress && <GradingProgressBar progress={progress} />}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{totalStudents}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Graded</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600 dark:text-green-400">{gradedCount}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">AI Suggested</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{suggestedCount}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{approvedCount}</div></CardContent></Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalStudents}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Graded</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{gradedCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">AI Suggested</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{suggestedCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{approvedCount}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <RubricEditor assignmentId={assignmentId} rubric={gradebook.rubric} />
@@ -165,10 +220,10 @@ export function Gradebook() {
           <CardTitle>Submissions Gradebook</CardTitle>
         </CardHeader>
         <CardContent>
-          <GradebookTable 
-            gradebook={gradebook} 
-            onEditGrade={(grade, row) => handleEditGrade(row, grade)} 
-            onApproveGrade={(gradeId) => approveSingleGrade.mutate(gradeId)} 
+          <GradebookTable
+            gradebook={gradebook}
+            onEditGrade={(grade, row) => handleEditGrade(row, grade)}
+            onApproveGrade={(gradeId) => approveSingleGrade.mutate(gradeId)}
           />
         </CardContent>
       </Card>

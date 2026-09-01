@@ -25,7 +25,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   startGoogleLogin,
   cancelGoogleLogin,
-  getGoogleAuthStatus, 
+  getGoogleAuthStatus,
   googleLogout,
   getSettings,
   saveSettings,
@@ -117,15 +117,13 @@ export function Settings() {
     }
   };
 
-  
-
   const handleSave = async () => {
     const fingerprint = parseInt(fingerprintThreshold, 10);
     const semantic = parseInt(semanticThreshold, 10);
     const dlConc = parseInt(downloadConcurrency, 10);
     const extConc = parseInt(extractionConcurrency, 10);
     const gradeConc = parseInt(gradingConcurrency, 10);
-      const gradeDelay = parseInt(gradingDelay, 10);
+    const gradeDelay = parseInt(gradingDelay, 10);
 
     if (isNaN(fingerprint) || isNaN(semantic)) {
       toast("Thresholds must be valid numbers between 0 and 100.", "error");
@@ -566,12 +564,14 @@ export function Settings() {
               <p className="text-xs text-muted-foreground">Gemini API workers (1–10)</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 mt-4">
             <div className="space-y-2">
               <label htmlFor="grading-delay" className="text-sm font-medium flex items-center gap-2">
                 Free Tier Rate Limit Pacing
-                <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">New</span>
+                <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">
+                  New
+                </span>
               </label>
               <Input
                 id="grading-delay"
@@ -581,7 +581,8 @@ export function Settings() {
                 onChange={(e) => setGradingDelay(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Seconds to wait after each grading request. Set to <b>12</b> if you are on the 5 RPM free tier limit for Gemini 2.5.
+                Seconds to wait after each grading request. Set to <b>12</b> if you are on the 5 RPM free tier limit for
+                Gemini 2.5.
               </p>
             </div>
           </div>

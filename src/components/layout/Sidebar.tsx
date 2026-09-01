@@ -52,7 +52,7 @@ export function Sidebar() {
     setSupportOpen(false);
   };
 
-    return (
+  return (
     <aside id="tour-sidebar" className="flex flex-col w-64 border-r border-border bg-card h-screen sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-sm">
@@ -106,7 +106,7 @@ export function Sidebar() {
               {item.label}
             </NavLink>
           ))}
-          
+
         <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
           <DialogTrigger className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer text-left">
             <HelpCircle className="w-4.5 h-4.5" />
@@ -115,9 +115,7 @@ export function Sidebar() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Help & Support</DialogTitle>
-              <DialogDescription>
-                Need access to the app or found a bug?
-              </DialogDescription>
+              <DialogDescription>Need access to the app or found a bug?</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
               <div className="flex flex-col gap-2">
@@ -125,12 +123,13 @@ export function Sidebar() {
                 <p className="text-sm text-muted-foreground">
                   GCR Simplified requires beta access. Send an email to request access or ask general questions.
                 </p>
-                <Button 
+                <Button
                   onClick={() => {
                     navigator.clipboard.writeText("sanagariudbhav@gmail.com");
-                    const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=sanagariudbhav@gmail.com&su=GCR+Simplified+Access+Request";
+                    const gmailUrl =
+                      "https://mail.google.com/mail/?view=cm&fs=1&to=sanagariudbhav@gmail.com&su=GCR+Simplified+Access+Request";
                     openUrl(gmailUrl).catch(() => window.open(gmailUrl, "_blank"));
-                    
+
                     // Note: We would normally use toast here, but we don't have it imported in Sidebar.tsx.
                     // We can just alert or rely on the browser opening.
                     toast("Email address copied to clipboard!", "success");

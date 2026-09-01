@@ -78,7 +78,10 @@ export const GradebookRow = memo(function GradebookRow({
             {row.student_email && <span>{row.student_email}</span>}
           </div>
           {(row.file_reg_no || row.file_name_hint) && (
-            <p className="text-xs text-muted-foreground italic mt-0.5" title="Identity parsed from the uploaded filename">
+            <p
+              className="text-xs text-muted-foreground italic mt-0.5"
+              title="Identity parsed from the uploaded filename"
+            >
               📄 {row.file_name_hint ?? "?"}
               {row.file_reg_no ? ` · ${row.file_reg_no}` : ""}
             </p>

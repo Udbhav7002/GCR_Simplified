@@ -32,13 +32,13 @@ pub async fn export_gradebook(
             )
             .replace(' ', "_")
             + ".xlsx";
-            
+
         let download_dir = app
             .path()
             .download_dir()
             .map_err(|e| e.to_string())?
             .join(&filename);
-            
+
         download_dir.to_string_lossy().to_string()
     };
 

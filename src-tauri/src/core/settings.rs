@@ -121,7 +121,9 @@ pub fn load_settings(pool: &DbPool) -> Result<AppSettings, String> {
         grading_concurrency: db_get_setting(pool, "grading_concurrency")?
             .and_then(|v| v.parse().ok())
             .unwrap_or(DEFAULT_GRADING_CONCURRENCY),
-        grading_delay_seconds: db_get_setting(pool, "grading_delay_seconds")?.and_then(|v| v.parse().ok()).unwrap_or(12),
+        grading_delay_seconds: db_get_setting(pool, "grading_delay_seconds")?
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(12),
     })
 }
 
@@ -174,7 +176,11 @@ pub fn save_settings(pool: State<'_, DbPool>, settings: AppSettings) -> Result<(
         "grading_concurrency",
         &settings.grading_concurrency.to_string(),
     )?;
-    save_setting(&pool, "grading_delay_seconds", &settings.grading_delay_seconds.to_string())?;
+    save_setting(
+        &pool,
+        "grading_delay_seconds",
+        &settings.grading_delay_seconds.to_string(),
+    )?;
     Ok(())
 }
 

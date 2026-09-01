@@ -434,9 +434,9 @@ pub async fn mirror_submissions_to_db(
             .student_name
             .clone()
             .unwrap_or_else(|| "Unknown Student".to_string());
-            
+
         let mut roll_number = sub.user_id.clone();
-        
+
         // Extract Registration Number from parentheses e.g. "SANAGARI UDBHAV (RA2511026010418)"
         if let Some(start) = name.rfind('(') {
             if let Some(end) = name.rfind(')') {
@@ -446,7 +446,7 @@ pub async fn mirror_submissions_to_db(
                 }
             }
         }
-        
+
         tx.execute(
             "INSERT INTO students (id, class_id, roll_number, name, email, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)

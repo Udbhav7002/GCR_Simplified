@@ -83,9 +83,9 @@ export function RubricEditor({ assignmentId, rubric }: RubricEditorProps) {
             className="w-24"
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           />
-          <Button 
-            onClick={handleAdd} 
-            disabled={addCriterion.isPending} 
+          <Button
+            onClick={handleAdd}
+            disabled={addCriterion.isPending}
             className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Plus className="w-4 h-4" />
