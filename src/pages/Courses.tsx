@@ -92,6 +92,7 @@ export function Courses() {
           {courses.map((course) => (
             <Card
               key={course.id}
+              role="article"
               className="hover:border-primary/50 transition-colors flex flex-col cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`/courses/${course.id}`)}
             >
