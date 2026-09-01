@@ -12,7 +12,7 @@ pub const DEFAULT_THEME: &str = "light";
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-2.5-flash";
 pub const DEFAULT_DOWNLOAD_CONCURRENCY: usize = 4;
 pub const DEFAULT_EXTRACTION_CONCURRENCY: usize = 4;
-pub const DEFAULT_GRADING_CONCURRENCY: usize = 3;
+pub const DEFAULT_GRADING_CONCURRENCY: usize = 1;
 
 /// Mirrors the frontend `AppSettings`. All fields carry serde defaults so a
 /// partial payload (e.g. missing `gemini_model`) never fails deserialization.
@@ -34,6 +34,8 @@ pub struct AppSettings {
     pub extraction_concurrency: usize,
     #[serde(default = "default_grading_concurrency")]
     pub grading_concurrency: usize,
+    #[serde(default = "default_grading_delay")]
+    pub grading_delay_seconds: u64,
 }
 
 fn default_model() -> String {
@@ -62,6 +64,10 @@ fn default_extraction_concurrency() -> usize {
 
 fn default_grading_concurrency() -> usize {
     DEFAULT_GRADING_CONCURRENCY
+}
+
+fn default_grading_delay() -> u64 {
+    12
 }
 
 pub fn validate_settings_input(settings: &AppSettings) -> Result<(), String> {
@@ -115,6 +121,7 @@ pub fn load_settings(pool: &DbPool) -> Result<AppSettings, String> {
         grading_concurrency: db_get_setting(pool, "grading_concurrency")?
             .and_then(|v| v.parse().ok())
             .unwrap_or(DEFAULT_GRADING_CONCURRENCY),
+        grading_delay_seconds: db_get_setting(pool, "grading_delay_seconds")?.and_then(|v| v.parse().ok()).unwrap_or(12),
     })
 }
 
@@ -167,6 +174,7 @@ pub fn save_settings(pool: State<'_, DbPool>, settings: AppSettings) -> Result<(
         "grading_concurrency",
         &settings.grading_concurrency.to_string(),
     )?;
+    save_setting(&pool, "grading_delay_seconds", &settings.grading_delay_seconds.to_string())?;
     Ok(())
 }
 
@@ -182,7 +190,7 @@ mod tests {
         assert_eq!(DEFAULT_GEMINI_MODEL, "gemini-2.5-flash");
         assert_eq!(DEFAULT_DOWNLOAD_CONCURRENCY, 4);
         assert_eq!(DEFAULT_EXTRACTION_CONCURRENCY, 4);
-        assert_eq!(DEFAULT_GRADING_CONCURRENCY, 3);
+        assert_eq!(DEFAULT_GRADING_CONCURRENCY, 1);
     }
 
     #[test]
@@ -195,7 +203,8 @@ mod tests {
             theme: "dark".to_string(),
             download_concurrency: 4,
             extraction_concurrency: 4,
-            grading_concurrency: 3,
+            grading_concurrency: 1,
+            grading_delay_seconds: 12,
         };
         assert!(validate_settings_input(&valid).is_ok());
 
@@ -238,6 +247,7 @@ mod tests {
         let parsed: AppSettings = serde_json::from_str("{}").unwrap();
         assert!(parsed.gemini_api_key.is_none());
         assert_eq!(parsed.gemini_model, DEFAULT_GEMINI_MODEL);
-        assert_eq!(parsed.grading_concurrency, 3);
+        assert_eq!(parsed.grading_concurrency, 1);
+        assert_eq!(parsed.grading_delay_seconds, 12);
     }
 }
