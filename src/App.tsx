@@ -4,11 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toaster";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { ThemeProvider } from "@/lib/useTheme";
 import { Loader2 } from "lucide-react";
-import { check } from "@tauri-apps/plugin-updater";
+import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { ask } from "@tauri-apps/plugin-dialog";
 import { getGoogleAuthStatus } from "@/lib/ipc";
 import { isOnboardingDismissed } from "@/lib/onboarding";
 
@@ -85,9 +85,9 @@ export function SetupGuard({ children }: { children: React.ReactNode }) {
 
 function AppLayout() {
   const checkedRef = useRef(false);
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
 
   useEffect(() => {
-    // We only want to check once per session in React strict mode
     if (checkedRef.current) return;
     checkedRef.current = true;
 
@@ -98,20 +98,7 @@ function AppLayout() {
         if (cancelled) return;
 
         if (update && update.available) {
-          const yes = await ask(
-            `Update to ${update.version} is available!\n\nRelease notes: ${update.body}\n\nDo you want to install it now?`,
-            {
-              title: "Update Available",
-              kind: "info",
-              okLabel: "Update Now",
-              cancelLabel: "Later",
-            }
-          );
-
-          if (yes) {
-            await update.downloadAndInstall();
-            await relaunch();
-          }
+          setPendingUpdate(update);
         }
       } catch (err) {
         console.warn("Updater check failed:", err);
@@ -121,6 +108,12 @@ function AppLayout() {
       cancelled = true;
     };
   }, []);
+
+  const handleInstall = async () => {
+    if (!pendingUpdate) return;
+    await pendingUpdate.downloadAndInstall();
+    await relaunch();
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -148,6 +141,15 @@ function AppLayout() {
           </Suspense>
         </main>
       </div>
+
+      {pendingUpdate && (
+        <UpdateBanner
+          version={pendingUpdate.version}
+          releaseNotes={pendingUpdate.body ?? undefined}
+          onInstall={handleInstall}
+          onDismiss={() => setPendingUpdate(null)}
+        />
+      )}
     </div>
   );
 }
