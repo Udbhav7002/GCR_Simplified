@@ -5,7 +5,10 @@ export function useUndoStack<T>() {
   const [future, setFuture] = useState<T[]>([]);
 
   const push = useCallback((action: T) => {
-    setPast((p) => [...p, action]);
+    setPast((p) => {
+      const next = [...p, action];
+      return next.length > 50 ? next.slice(next.length - 50) : next;
+    });
     setFuture([]);
   }, []);
 

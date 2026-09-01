@@ -13,8 +13,8 @@ import { getGoogleAuthStatus } from "@/lib/ipc";
 import { isOnboardingDismissed } from "@/lib/onboarding";
 
 // Keep Dashboard eagerly loaded (it's the app entry).
-import { Dashboard } from "@/pages/Dashboard";
-import { Onboarding } from "@/pages/Onboarding";
+const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Onboarding = lazy(() => import("@/pages/Onboarding").then((m) => ({ default: m.Onboarding })));
 
 // Lazy-load the rest so each page is a separate chunk.
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
