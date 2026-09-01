@@ -14,7 +14,7 @@ export function DownloadProgressBar({ label, progress, active }: DownloadProgres
   return (
     <Card className="border-primary/30 bg-primary/5">
       <CardContent className="pt-4 pb-4 space-y-2">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-sm" aria-live="polite">
           <div className="flex items-center gap-2 font-medium">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
             <span>
