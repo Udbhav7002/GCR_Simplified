@@ -1,5 +1,7 @@
 # GCR Simplified
 
+[![CI](https://github.com/Udbhav7002/GCR_Simplified/actions/workflows/ci.yml/badge.svg)](https://github.com/Udbhav7002/GCR_Simplified/actions/workflows/ci.yml)
+
 *Grade · Check · Report — a desktop app for Google Classroom.*
 
 GCR Simplified is a Tauri v2 desktop app for teachers. It connects to Google Classroom, downloads assignment submissions, extracts their text, checks for plagiarism between students, grades with AI (optional), and exports an Excel gradebook. Students submit work through Google Classroom as usual and never touch this app.
