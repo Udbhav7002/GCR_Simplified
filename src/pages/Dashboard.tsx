@@ -17,11 +17,10 @@ import { useDashboardStats, useAuthStatus } from "@/hooks/useGoogleData";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  
-  
+
   const { data: stats, isLoading: loadingStats } = useDashboardStats();
   const { data: authStatus, isLoading: loadingAuth } = useAuthStatus();
-  
+
   const loading = loadingStats || loadingAuth;
   const [showBanner, setShowBanner] = useState(() => !localStorage.getItem("hide_welcome_banner"));
 

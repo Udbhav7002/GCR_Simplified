@@ -8,8 +8,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export function MissingSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
 
-  const { data: missingStudents = [], isLoading: loadingMissing, errorMsg: errorMissing, refetch: refetchMissing } = useMissingSubmissions(courseId || "", courseWorkId || "");
-  const { data: submissions = [], isLoading: loadingSubs, errorMsg: errorSubs, refetch: refetchSubs, isSyncing } = useSubmissions(courseId || "", courseWorkId || "");
+  const {
+    data: missingStudents = [],
+    isLoading: loadingMissing,
+    errorMsg: errorMissing,
+    refetch: refetchMissing,
+  } = useMissingSubmissions(courseId || "", courseWorkId || "");
+  const {
+    data: submissions = [],
+    isLoading: loadingSubs,
+    errorMsg: errorSubs,
+    refetch: refetchSubs,
+    isSyncing,
+  } = useSubmissions(courseId || "", courseWorkId || "");
 
   const loading = loadingMissing || loadingSubs;
   const error = errorMissing || errorSubs;
@@ -19,11 +30,12 @@ export function MissingSubmissions() {
   const missingCount = missingStudents.length;
   const submissionRate = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
 
-  
   const handleRetry = async () => {
     try {
       await Promise.all([refetchMissing(), refetchSubs()]);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (error) {

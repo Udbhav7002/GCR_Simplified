@@ -9,10 +9,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
-  
-  const { data: courses = [], isLoading: loadingCourses, errorMsg: errorCourses, refetch: refetchCourses, sync: syncCourses, isSyncing: syncingCourses } = useCourses();
-  const { data: students = [], isLoading: loadingStudents, errorMsg: errorStudents, refetch: refetchStudents, sync: syncStudents, isSyncing: syncingStudents } = useStudents(courseId || "");
-  const { data: coursework = [], isLoading: loadingCoursework, errorMsg: errorCoursework, refetch: refetchCoursework, sync: syncCoursework, isSyncing: syncingCoursework } = useCoursework(courseId || "");
+
+  const {
+    data: courses = [],
+    isLoading: loadingCourses,
+    errorMsg: errorCourses,
+    refetch: refetchCourses,
+    sync: syncCourses,
+    isSyncing: syncingCourses,
+  } = useCourses();
+  const {
+    data: students = [],
+    isLoading: loadingStudents,
+    errorMsg: errorStudents,
+    refetch: refetchStudents,
+    sync: syncStudents,
+    isSyncing: syncingStudents,
+  } = useStudents(courseId || "");
+  const {
+    data: coursework = [],
+    isLoading: loadingCoursework,
+    errorMsg: errorCoursework,
+    refetch: refetchCoursework,
+    sync: syncCoursework,
+    isSyncing: syncingCoursework,
+  } = useCoursework(courseId || "");
 
   const courseName = courses.find((c) => c.id === courseId)?.name || "Course Details";
   const loading = loadingCourses || loadingStudents || loadingCoursework;
@@ -22,13 +43,17 @@ export function CourseDetail() {
   const handleSync = async () => {
     try {
       await Promise.all([syncCourses(), syncStudents(), syncCoursework()]);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
-  
+
   const handleRetry = async () => {
     try {
       await Promise.all([refetchCourses(), refetchStudents(), refetchCoursework()]);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (error) {

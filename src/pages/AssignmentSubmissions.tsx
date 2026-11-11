@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { listen } from "@tauri-apps/api/event";
 import { useSubmissions } from "@/hooks/useGoogleData";
-import {
-  downloadSubmissionFile,
-  downloadAllSubmissions,
-  extractAllSubmissions,
-  cancelActiveTasks,
-} from "@/lib/ipc";
+import { downloadSubmissionFile, downloadAllSubmissions, extractAllSubmissions, cancelActiveTasks } from "@/lib/ipc";
 import { useToast, friendlyError } from "@/components/ui/toaster";
 import type { GoogleSubmission, GoogleAttachment, ExtractionResult, DownloadProgress } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,9 +15,15 @@ import { motion } from "framer-motion";
 
 export function AssignmentSubmissions() {
   const { courseId, courseWorkId } = useParams<{ courseId: string; courseWorkId: string }>();
-  
-  const { data: submissions = [], isLoading: loading, errorMsg: error, sync, isSyncing } = useSubmissions(courseId || "", courseWorkId || "");
-  
+
+  const {
+    data: submissions = [],
+    isLoading: loading,
+    errorMsg: error,
+    sync,
+    isSyncing,
+  } = useSubmissions(courseId || "", courseWorkId || "");
+
   const toast = useToast();
   const [downloadingItems, setDownloadingItems] = useState<Record<string, "downloading" | "success" | "error">>({});
   const [extractionResults, setExtractionResults] = useState<Record<string, ExtractionResult>>({});
@@ -35,7 +36,9 @@ export function AssignmentSubmissions() {
   const downloadUnlistenRef = useRef<(() => void) | null>(null);
   const extractionUnlistenRef = useRef<(() => void) | null>(null);
 
-  const handleSync = () => { sync().catch(console.error); };
+  const handleSync = () => {
+    sync().catch(console.error);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -68,8 +71,6 @@ export function AssignmentSubmissions() {
       }
     };
   }, []);
-
-  
 
   const extractionByStudent = useMemo(() => {
     const map: Record<string, ExtractionResult> = {};

@@ -115,7 +115,7 @@ export function useMissingSubmissions(courseId: string, courseWorkId: string) {
 export function useDashboardStats() {
   const query = useQuery({
     queryKey: ["dashboard_stats"],
-    queryFn: () => import("@/lib/ipc").then(m => m.getDashboardStats()),
+    queryFn: () => import("@/lib/ipc").then((m) => m.getDashboardStats()),
   });
   return query;
 }
@@ -123,7 +123,7 @@ export function useDashboardStats() {
 export function useAuthStatus() {
   const query = useQuery({
     queryKey: ["auth_status"],
-    queryFn: () => import("@/lib/ipc").then(m => m.getGoogleAuthStatus()),
+    queryFn: () => import("@/lib/ipc").then((m) => m.getGoogleAuthStatus()),
   });
   return query;
 }
