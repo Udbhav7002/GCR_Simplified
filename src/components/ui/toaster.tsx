@@ -67,7 +67,7 @@ export function friendlyError(err: unknown): string {
     raw = err.message;
   } else if (typeof err === "object" && err !== null) {
     if ("message" in err) {
-      raw = String((err as any).message);
+      raw = String((err as { message: unknown }).message);
     } else {
       raw = JSON.stringify(err);
     }

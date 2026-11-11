@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useGradebookQuery } from "./useGradebookData";
 import { getGradebook } from "@/lib/ipc";
+import type { GradebookView } from "@/lib/types";
 import React from "react";
 
 // Mock the IPC module
@@ -41,8 +42,14 @@ describe("useGradebookQuery", () => {
   });
 
   it("should fetch gradebook data successfully", async () => {
-    const mockData = { id: "a1", assignment_title: "Test" };
-    vi.mocked(getGradebook).mockResolvedValue(mockData as any);
+    const mockData: GradebookView = {
+      assignment_id: "a1",
+      assignment_title: "Test",
+      class_name: "CS 101",
+      rubric: [],
+      rows: [],
+    };
+    vi.mocked(getGradebook).mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useGradebookQuery("a1"), { wrapper });
 
