@@ -157,6 +157,12 @@ npm run tauri build
 
 ---
 
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
 <div align="center">
   <sub>Built with ❤️ for educators everywhere.</sub>
 </div>
