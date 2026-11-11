@@ -24,10 +24,10 @@ tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-single-instance = "2"
-rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+rusqlite = { version = "0.41", features = ["bundled", "backup"] }
 r2d2 = "0.8"
-r2d2_sqlite = "0.25"
-rust_xlsxwriter = "0.80"
+r2d2_sqlite = "0.36"
+rust_xlsxwriter = "0.102"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -40,8 +40,8 @@ rand = "0.8"
 urlencoding = "2"
 open = "5"
 pdf-extract = "0.12"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-quick-xml = "0.37"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+quick-xml = "0.42"
 keyring = "3"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"

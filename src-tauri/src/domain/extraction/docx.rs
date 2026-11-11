@@ -25,22 +25,34 @@ pub fn extract_docx_text(file_path: &str) -> Result<String, String> {
         match reader.read_event_into(&mut buf) {
             Ok(quick_xml::events::Event::Start(ref e)) => {
                 let name = e.name();
-                if name.as_ref() == b"w:p" {
+                if name.as_ref() == "w:p" {
                     in_paragraph = true;
                 }
             }
             Ok(quick_xml::events::Event::End(ref e)) => {
                 let name = e.name();
-                if name.as_ref() == b"w:p" && in_paragraph {
+                if name.as_ref() == "w:p" && in_paragraph {
                     text_output.push('\n');
                     in_paragraph = false;
                 }
             }
             Ok(quick_xml::events::Event::Text(e)) => {
-                if let Ok(text) = e.unescape() {
-                    text_output.push_str(&text);
-                }
+                text_output.push_str(&e.xml10_content());
             }
+            Ok(quick_xml::events::Event::GeneralRef(e)) => match e.resolve_char_ref() {
+                Ok(Some(ch)) => text_output.push(ch),
+                Ok(None) => {
+                    if let Some(text) = quick_xml::escape::resolve_xml_entity(e.as_ref()) {
+                        text_output.push_str(text);
+                    }
+                }
+                Err(_) => {
+                    return Err(format!(
+                        "Invalid character reference in DOCX: {}",
+                        e.as_ref()
+                    ))
+                }
+            },
             Ok(quick_xml::events::Event::Eof) => break,
             Err(e) => return Err(format!("XML parse error in DOCX: {}", e)),
             _ => (),
@@ -57,14 +69,14 @@ mod tests {
     use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
     use quick_xml::Writer;
     use std::io::{Cursor, Write};
-    use zip::write::FileOptions;
+    use zip::write::SimpleFileOptions;
 
     fn create_test_docx(content: &str) -> Vec<u8> {
         let mut buf = Vec::new();
         {
             let mut zip = zip::ZipWriter::new(Cursor::new(&mut buf));
-            let options: FileOptions<()> =
-                FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
             // Create [Content_Types].xml
             zip.start_file("[Content_Types].xml", options).unwrap();
@@ -168,8 +180,8 @@ mod tests {
         let mut buf = Vec::new();
         {
             let mut zip = zip::ZipWriter::new(Cursor::new(&mut buf));
-            let options: FileOptions<()> =
-                FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
             zip.start_file("[Content_Types].xml", options).unwrap();
             zip.write_all(br#"<?xml version="1.0" encoding="UTF-8"?>
