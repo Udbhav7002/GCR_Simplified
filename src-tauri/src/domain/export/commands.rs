@@ -1,7 +1,7 @@
 use crate::core::db::DbPool;
 use crate::domain::export::xlsx::{export_gradebook_xlsx, IntegrityRow};
-use crate::domain::plagiarism::PlagiarismReport;
 use crate::domain::grading::commands::get_gradebook;
+use crate::domain::plagiarism::PlagiarismReport;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::{AppHandle, Manager, State};
@@ -43,7 +43,6 @@ pub async fn export_gradebook(
         download_dir.to_string_lossy().to_string()
     };
 
-    
     let mut integrity_rows = Vec::new();
     if let (Some(cid), Some(cwid)) = (&options.course_id, &options.course_work_id) {
         if let Ok(conn) = pool.get() {

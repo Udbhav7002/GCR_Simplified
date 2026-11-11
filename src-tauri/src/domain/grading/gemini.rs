@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_error() {
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "test\nerror\rwith\twhitespace");
+        let err = std::io::Error::other("test\nerror\rwith\twhitespace");
         let sanitized = sanitize_error(&err);
         assert!(!sanitized.contains('\n'));
         assert!(!sanitized.contains('\r'));
